@@ -1,4 +1,4 @@
-package Template::Trivial;
+package Template::Perlish;
 
 use version; our $VERSION = qv('0.0.1');
 
@@ -150,18 +150,18 @@ __END__
 
 =head1 NAME
 
-Template::Trivial - [Una riga di descrizione dello scopo del modulo]
+Template::Perlish - [Una riga di descrizione dello scopo del modulo]
 
 
 =head1 VERSION
 
-This document describes Template::Trivial version 0.0.1. Most likely, this
+This document describes Template::Perlish version 0.0.1. Most likely, this
 version number here is outdate, and you should peek the source.
 
 
 =head1 SYNOPSIS
 
-   use Template::Trivial;
+   use Template::Perlish;
 
 =for l'autore, da riempire:
    Qualche breve esempio con codice che mostri l'utilizzo più comune.
@@ -223,7 +223,7 @@ version number here is outdate, and you should peek the source.
    devono anche includere dettagli su eventuali linguaggi di configurazione
    utilizzati.
   
-Template::Trivial requires no configuration files or environment variables.
+Template::Perlish requires no configuration files or environment variables.
 
 
 =head1 DEPENDENCIES
