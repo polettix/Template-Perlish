@@ -10,3 +10,4 @@ t/02.complex.t
 t/03.limits.t
 t/pod-coverage.t
 t/pod.t
+META.yml
