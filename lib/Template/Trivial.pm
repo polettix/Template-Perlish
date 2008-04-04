@@ -7,19 +7,145 @@ use strict;
 use Carp;
 use English qw( -no_match_vars );
 
-# Other recommended modules (uncomment to use):
-#  use IO::Prompt;
-#  use Perl6::Export;
-#  use Perl6::Slurp;
-#  use Perl6::Say;
-#  use Regexp::Autoflags;
-#  use Readonly;
-
-
 # Module implementation here
+sub new {
+   my $self = bless {
+      start => '[%',
+      stop  => '%]',
+      variables => {},
+     },
+     shift;
+   %$self = (%$self, @_ == 1 ? %{$_[0]} : @_);
+   return $self;
+} ## end sub new
 
+sub get_start { return shift->{start}; }
+sub get_stop  { return shift->{stop}; }
 
-1; # Magic true value required at end of module
+sub set_start {
+   my ($self, $value) = @_;
+   $self->{start} = $value;
+}
+
+sub set_stop {
+   my ($self, $value) = @_;
+   $self->{stop} = $value;
+}
+
+sub get_variables {
+   my $v = shift->{variables};
+   return $v unless wantarray;
+   return %$v;
+}
+
+sub set_variables {
+   my ($self, $value) = @_;
+   $self->{variables} = $value;
+}
+
+sub set_variable {
+   my ($self, $name, $value) = @_;
+   $self->get_variables()->{$name} = $value;
+}
+
+sub process {
+   my $self = shift;
+   my ($template, $vars) = @_;
+
+   my $compiled = $self->compile($template);
+   # print {*STDERR} "COMPILED:\n$compiled\n";
+
+   local *STDOUT;
+   open STDOUT, '>', \my $buffer or die "open(): $OS_ERROR";
+   my %variables = ($self->get_variables(), %{$vars || {}});
+   eval $compiled;
+   return $buffer;
+} ## end sub process
+
+sub _simple_text {
+   my $text = shift;
+   $text =~ s/^/ /gms;
+   return <<"END_OF_CHUNK";
+####################################################
+###
+### Verbatim text
+print {*STDOUT} do {
+   my \$text = <<'END_OF_INDENTED_TEXT';
+$text
+END_OF_INDENTED_TEXT
+   \$text =~ s/^ //gms;
+   substr \$text, -1, 1, '';
+   \$text;
+};
+
+END_OF_CHUNK
+}
+
+sub _variable {
+   my $path = shift;
+   $path =~ s/\A\s+|\s+\z//mxsg;
+   return <<"END_OF_CHUNK";
+####################################################
+###
+### Find path inside variables stash
+{
+   my \$value = \\\%variables;
+   for my \$chunk (split /\\./, '$path') {
+      if (ref(\$value) eq 'HASH') {
+         \$value = \$value->{\$chunk};
+      }
+      elsif (ref(\$value) eq 'ARRAY') {
+         \$value = \$value->[\$chunk];
+      }
+      else {
+         \$value = undef;
+         last;
+      }
+   }
+   \$value = '' unless defined \$value;
+   print {*STDOUT} \$value;
+}
+
+END_OF_CHUNK
+}
+
+sub compile {
+   my $self = shift;
+   my ($template) = @_;
+
+   my $starter = $self->get_start();
+   my $stopper = $self->get_stop();
+
+   my $compiled = '';
+   my $pos      = 0;
+   while ($pos < length $template) {
+      # Find starter and emit all previous text as simple text
+      my $start = index $template, $starter, $pos;
+      last if $start < 0;
+      $compiled .= _simple_text(substr $template, $pos, $start - $pos)
+        if $start > $pos;
+      $pos = $start + length $starter;
+
+      # Grab code
+      my $stop = index $template, $stopper, $pos;
+      croak "unclosed $starter at position $pos" if $stop < 0;
+      my $code = substr $template, $pos, $stop - $pos;
+      $pos = $stop + length $stopper;
+
+      next unless length $code;
+      if ($code =~ m{\A\s* \w+(?:\.\w+)* \s*\z}mxs) {
+         $compiled .= _variable($code);
+      }
+      else {
+         $compiled .= $code;
+      }
+   } ## end while ($pos < length $template)
+   $compiled .= _simple_text(substr($template, $pos || 0));
+
+   return $compiled;
+} ## end sub compile
+
+1;    # Magic true value required at end of module
 __END__
 
 =head1 NAME
