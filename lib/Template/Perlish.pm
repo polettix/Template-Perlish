@@ -1,6 +1,6 @@
 package Template::Perlish;
 
-use version; our $VERSION = qv('0.0.1');
+$VERSION = '1.0';
 
 use warnings;
 use strict;
@@ -10,8 +10,8 @@ use English qw( -no_match_vars );
 # Module implementation here
 sub new {
    my $self = bless {
-      start => '[%',
-      stop  => '%]',
+      start     => '[%',
+      stop      => '%]',
       variables => {},
      },
      shift;
@@ -20,16 +20,19 @@ sub new {
 } ## end sub new
 
 sub get_start { return shift->{start}; }
-sub get_stop  { return shift->{stop}; }
 
 sub set_start {
    my ($self, $value) = @_;
    $self->{start} = $value;
+   return;
 }
+
+sub get_stop { return shift->{stop}; }
 
 sub set_stop {
    my ($self, $value) = @_;
    $self->{stop} = $value;
+   return;
 }
 
 sub get_variables {
@@ -39,28 +42,74 @@ sub get_variables {
 }
 
 sub set_variables {
-   my ($self, $value) = @_;
-   $self->{variables} = $value;
+   my $self = shift;
+   if (@_ == 1) {
+      $self->{variables} = shift;
+   }
+   else {
+      %{$self->{variables}} = @_;
+   }
+   return;
 }
 
 sub set_variable {
    my ($self, $name, $value) = @_;
    $self->get_variables()->{$name} = $value;
+   return;
 }
 
 sub process {
-   my $self = shift;
-   my ($template, $vars) = @_;
+   my ($self, $template, $vars) = @_;
+   return $self->evaluate($self->compile($template), $vars);
+} ## end sub process
 
-   my $compiled = $self->compile($template);
-   # print {*STDERR} "COMPILED:\n$compiled\n";
+sub evaluate {
+   my $self = shift;
+   my ($compiled, $vars) = @_;
 
    local *STDOUT;
-   open STDOUT, '>', \my $buffer or die "open(): $OS_ERROR";
+   open STDOUT, '>', \my $buffer or croak "open(): $OS_ERROR";
    my %variables = ($self->get_variables(), %{$vars || {}});
    eval $compiled;
    return $buffer;
-} ## end sub process
+}
+
+sub compile {
+   my $self = shift;
+   my ($template) = @_;
+
+   my $starter = $self->get_start();
+   my $stopper = $self->get_stop();
+
+   my $compiled = "print {*STDOUT} '';\n\n";
+   my $pos      = 0;
+   while ($pos < length $template) {
+
+      # Find starter and emit all previous text as simple text
+      my $start = index $template, $starter, $pos;
+      last if $start < 0;
+      $compiled .= _simple_text(substr $template, $pos, $start - $pos)
+        if $start > $pos;
+      $pos = $start + length $starter;
+
+      # Grab code
+      my $stop = index $template, $stopper, $pos;
+      croak "unclosed $starter at position $pos" if $stop < 0;
+      my $code = substr $template, $pos, $stop - $pos;
+      $pos = $stop + length $stopper;
+
+      next unless length $code;
+      if ($code =~ m{\A\s* \w+(?:\.\w+)* \s*\z}mxs) {
+         $compiled .= _variable($code);
+      }
+      else {
+         $compiled .= $code;
+      }
+   } ## end while ($pos < length $template)
+   $compiled .= _simple_text(substr($template, $pos || 0));
+
+   return $compiled;
+} ## end sub compile
 
 sub _simple_text {
    my $text = shift;
@@ -79,7 +128,7 @@ END_OF_INDENTED_TEXT
 };
 
 END_OF_CHUNK
-}
+} ## end sub _simple_text
 
 sub _variable {
    my $path = shift;
@@ -107,55 +156,19 @@ sub _variable {
 }
 
 END_OF_CHUNK
-}
-
-sub compile {
-   my $self = shift;
-   my ($template) = @_;
-
-   my $starter = $self->get_start();
-   my $stopper = $self->get_stop();
-
-   my $compiled = '';
-   my $pos      = 0;
-   while ($pos < length $template) {
-      # Find starter and emit all previous text as simple text
-      my $start = index $template, $starter, $pos;
-      last if $start < 0;
-      $compiled .= _simple_text(substr $template, $pos, $start - $pos)
-        if $start > $pos;
-      $pos = $start + length $starter;
-
-      # Grab code
-      my $stop = index $template, $stopper, $pos;
-      croak "unclosed $starter at position $pos" if $stop < 0;
-      my $code = substr $template, $pos, $stop - $pos;
-      $pos = $stop + length $stopper;
-
-      next unless length $code;
-      if ($code =~ m{\A\s* \w+(?:\.\w+)* \s*\z}mxs) {
-         $compiled .= _variable($code);
-      }
-      else {
-         $compiled .= $code;
-      }
-   } ## end while ($pos < length $template)
-   $compiled .= _simple_text(substr($template, $pos || 0));
-
-   return $compiled;
-} ## end sub compile
+} ## end sub _variable
 
 1;    # Magic true value required at end of module
 __END__
 
 =head1 NAME
 
-Template::Perlish - [Una riga di descrizione dello scopo del modulo]
+Template::Perlish - Yet Another Templating system for Perl
 
 
 =head1 VERSION
 
-This document describes Template::Perlish version 0.0.1. Most likely, this
+This document describes Template::Perlish version 1.0. Most likely, this
 version number here is outdate, and you should peek the source.
 
 
@@ -163,111 +176,347 @@ version number here is outdate, and you should peek the source.
 
    use Template::Perlish;
 
-=for l'autore, da riempire:
-   Qualche breve esempio con codice che mostri l'utilizzo più comune.
-   Questa sezione sarà quella probabilmente più letta, perché molti
-   utenti si annoiano a leggere tutta la documentazione, per cui
-   è meglio essere il più educativi ed esplicativi possibile.
-  
-  
+   my $tp = Template::Perlish->new();
+
+   # A complex template, including some logic as Perl code
+   my $tmpl = <<END_OF_TEMPLATE
+   Dear [% name %],
+
+      we are pleased to present you the following items:
+   [%
+      my $items = $variables{items}; # Available %variables
+      for my $item (@$items) {%]
+      * [% print $item;
+      }
+   %]
+
+   Please consult our complete catalog at [% uris.2.catalog %].
+
+   Yours,
+
+      [% director.name %] [% director.surname %].
+   END_OF_TEMPLATE
+
+   my $processed = $tt->process($template, {
+      name => 'Ciccio Riccio',
+      items => [ qw( ciao a tutti quanti ) ],
+      uris => [
+         'http://whatever/',
+         undef,
+         {
+            catalog => 'http://whateeeeever/',
+         }
+      ],
+      director => { surname => 'Poletti' },
+   });
+
+   # The above prints:
+   #
+   #   Dear Ciccio Riccio,
+   #   
+   #      we are pleased to present you the following items:
+   #   
+   #      * ciao
+   #      * a
+   #      * tutti
+   #      * quanti
+   #   
+   #   Please consult our complete catalog at http://whateeeeever/.
+   #   
+   #   Yours,
+   #   
+   #       Poletti.
+
 =head1 DESCRIPTION
 
-=for l'autore, da riempire:
-   Fornite una descrizione completa del modulo e delle sue caratteristiche.
-   Aiutatevi a strutturare il testo con le sottosezioni (=head2, =head3)
-   se necessario.
+You bet, this is another templating system for Perl. Yes, because
+it's the dream of every Perl programmer, me included. I needed something
+that's easily portable, with no dependencies apart a recent Perl version
+(but with some tweaking this should be solved), much in the spirit of
+the ::Tiny modules. And yes, my dream is to fill that ::Tiny gap some
+time in the future, but with another module.
+
+Wherever possible I try to mimic Template::Toolkit, but I stop quite
+early. If you only have to fill a template with a bunch of variables,
+chances are that TT2 templates are good for Template::Perlish as well.
+If you need even the slightest bit of logic, you'll have to part from
+TT2 - and get full Perl power.
+
+A template is simply a text (even if not necessarily) with some
+particular markup to embed commands. In particular, all the stuff
+included between C<[%> and C<%]> is considered as some sort of
+I<command>, and treated specially. All the rest is treated as simple
+text. Of course, you can modify the start and stop delimiter for a
+command.
+
+I<Commands> can be of two different types:
+
+=over
+
+=item B<variable embedding>
+
+that are expanded with the particular value for a given C<variable>, where
+C<variable>s are passed as a hash reference. A variable can be defined
+as a sequence of alphanumeric (actually C<\w>) tokens, separated by dots.
+The variables hash is visited considering each token as a subkey, in order
+to let you visit complex data structures. You can also put arrays in, but
+remember to use numbers ;)
+
+=item B<code>
+
+good old Perl code, in order to provide you with control structures,
+modules, etc etc. This the most lazy approach I could think about, and
+it's also why this module is called C<Perlish>.
+
+=back
+
+Take a look at the example in the L<SYNOPSIS>, it actually contains all
+that this module provides.
+
+To start, you'll need a C<Template::Perlish> object and, of course, a
+template. Templates are provided as text strings; if you have them into
+files, you are in charge of loading them first.
+
+   # get a Template::Perlish object
+   my $tp = Template::Perlish->new();
+
+   # get the template (yes, it's your duty)
+   my $tmpl = do { open my $fh, '<', 'filename'; local $/; <$fh> };
+
+The basic operation mode is via the L<process()> method, which works much
+like in TT2. Anyway, this method will always give you back the generated
+stuff, and won't print anything. This can probably be less memory
+efficient when big templates are involved, but in this case you should
+probably head somewhere else.
+
+   # print out the template filled with some variables
+   print $tp->process($tmpl, { key => 'value' });
+
+Each template is transformed into Pure Perl code, then the code
+is evaluated in order to get the output. Thus, if you want to operate
+on the same template many times, a typical usage is:
+
+   # compile the template with something like:
+   my $compiled = $tp->compile($template);
+
+   # use the compiled template multiple times with different data
+   for my $dataset (@available_data) {
+      print {*STDOUT} "DATASET\n", $tp->evaluate($dataset), "\n\n";
+   }
 
 
 =head1 INTERFACE 
 
-=for l'autore, da riempire:
-   Scrivete una sezione separata che elenchi i componenti pubblici
-   dell'interfaccia del modulo. Questi normalmente sono formati o
-   dalle subroutine che possono essere esportate, o dai metodi che
-   possono essere chiamati su oggetti che appartengono alle classi
-   fornite da questo modulo.
-
-
-=head1 DIAGNOSTICS
-
-=for l'autore, da riempire:
-   Elencate qualunque singolo errore o messaggio di avvertimento che
-   il modulo può generare, anche quelli che non "accadranno mai".
-   Includete anche una spiegazione completa di ciascuno di questi
-   problemi, una o più possibili cause e qualunque rimedio
-   suggerito.
-
+=head2 Constructor and Accessors
 
 =over
 
-=item C<< Error message here, perhaps with %s placeholders >>
+=item B<< new(%opts) >>
 
-[Descrizione di un errore]
+=item B<< new(\%opts) >>
 
-=item C<< Another error message here >>
+constructor, does exactly what you think. You can provide any parameter,
+but only the following will make sense:
 
-[Descrizione di un errore]
+=over
 
-[E così via...]
+=item I<< start >>
+
+delimiter for the start of a I<command> (as opposed to plain text/data);
+
+=item I<< stop >>
+
+delimiter for the end of a I<command>;
+
+=item I<< variables >>
+
+variables that will be passed to all invocations of L<process()> and/or
+L<evaluate()>.
+
+=back
+
+Parameters can be given directly or via a hash reference.
+
+By default, the delimiters are the same as TT2, i.e. C<[%> and C<%]>, and
+the variables hash is empty.
+
+=item B<< get_start(), set_start($value) >>
+
+=item B<< get_stop(), set_stop($value) >>
+
+accessors for the delimiters (see L<new()>).
+
+
+=item B<< get_variables() >>
+
+get the configured variables. These variables will be available to all
+invocations of either C<process()> or C<evaluate()>.
+
+When called in scalar context returns a reference to the hash containing
+the variables. You can set variables directly on the hash. In list
+context the whole hash will be returned (as a shallow copy).
+
+=item B<< set_variables(%new_values) >>
+
+=item B<< set_variables(\%new_values) >>
+
+set variables common to all subsequent invocations. You can pass either
+the new contents for the hash, or a reference to the hash to be used.
+
+
+=item B<< set_variable($name, $value) >>
+
+set a single variable's value, among the variables that are passed to
+all invocations.
+
+=back
+
+=head2 Template Handling
+
+=over
+
+=item B<< compile($template) >>
+
+compile a template generating the relevant Perl code. Using this method
+is useful when the same template has to be used multiple times, so the
+compilation can be done one time only.
+
+Please note that the generated Perl code will be parsed each time you
+use it, of course.
+
+Returns a text containing Perl code.
+
+=item B<< evaluate($compiled) >>
+
+=item B<< evaluate($compiled, $variables) >>
+
+evaluate a template (in its compiled for, see L<compile()>) with the
+available variables. In the former form, only the already configured
+variables are used; in the latter, the given C<$variables> (which is
+a hash reference) are added, overriding any matching key.
+
+Returns the processed text as a string.
+
+=item B<< process($template) >>
+
+=item B<< process($template, $variables) >>
+
+this method included L<compile()> and L<evaluate()> into a single step.
+
+=back
+
+=head2 Templates
+
+There's really very little to say.
+
+Available variables can be accessed in two ways: using the dotted notation,
+as in
+
+   [% some.value.3.lastkey %]
+
+or explicitly using the C<%variables> hash:
+
+   [% print $variables{some}{value}[3]{lastkey} %]
+
+The former is cleaner, but the latter is more powerful of course.
+
+If you know Perl, you should not have problems using the control structures.
+Just intersperse the code with the templates as you would normally do
+in any other templating system:
+
+   [%
+      if ($variables{this}) {
+   %]
+        blah blah [% this %], foo bar!
+   [%
+      }
+      else {
+   %]
+        yak yak that!
+   [%
+      }
+   %]
+
+Take care to always terminate your commands with a C<;> each time
+you would do it in actual code.
+
+There's no escaping mechanism, so if you want to include literal
+C<[%> or C<%]> you either have to change delimiters, or you have to
+resort to tricks. In particular, a stray closing inside a textual part
+won't be a problem, e.g.:
+
+   [% print "variable"; %] %] [% print "another"; %]
+
+prints:
+
+   variable %] another
+
+The tricky part is including the closing in the Perl code, but there
+can be many tricks:
+
+   [% print '>>>%'.']<<<' %]
+
+prints
+
+   >>>%]<<<
+
+To include a starter in the text just print it inside a Perl block:
+
+   here it comes [% print '[%'; %] the delimiter
+
+prints:
+
+   here it comes [% the delimiter
+
+Another trick is to separate the two chars with an empty block:
+
+   here it comes [[%%]%
+
+Including the starter in the Perl code is not a problem, of course.
+
+So the bottom line is: who needs escaping?
+
+=head1 DIAGNOSTICS
+
+Unfortunately, the diagnostic is still quite poor.
+
+=over
+
+=item C<< open(): %s >>
+
+the only C<open()> is done to print stuff to a string. If you get this
+error, you're probably using a version of Perl that's too old.
+
+=item C<< unclosed %s at position %d >>
+
+a Perl block was opened but not closed.
 
 =back
 
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-=for l'autore, da riempire:
-   Una spiegazione completa di qualunque sistema di configurazione
-   utilizzato dal modulo, inclusi i nomi e le posizioni dei file di
-   configurazione, il significato di ciascuna variabile di ambiente
-   utilizzata e proprietà che può essere impostata. Queste descrizioni
-   devono anche includere dettagli su eventuali linguaggi di configurazione
-   utilizzati.
-  
 Template::Perlish requires no configuration files or environment variables.
 
 
 =head1 DEPENDENCIES
 
-=for l'autore, da riempire:
-   Una lista di tutti gli altri moduli su cui si basa questo modulo,
-   incluse eventuali restrizioni sulle relative versioni, ed una
-   indicazione se il modulo in questione è parte della distribuzione
-   standard di Perl, parte della distribuzione del modulo o se
-   deve essere installato separatamente.
-
-None.
+None, apart a fairly recent version of Perl.
 
 
 =head1 INCOMPATIBILITIES
-
-=for l'autore, da riempire:
-   Una lista di ciascun modulo che non può essere utilizzato
-   congiuntamente a questo modulo. Questa condizione può verificarsi
-   a causa di conflitti nei nomi nell'interfaccia, o per concorrenza
-   nell'utilizzo delle risorse di sistema o di programma, o ancora
-   a causa di limitazioni interne di Perl (ad esempio, molti dei
-   moduli che utilizzano filtri al codice sorgente sono mutuamente
-   incompatibili).
 
 None reported.
 
 
 =head1 BUGS AND LIMITATIONS
 
-=for l'autore, da riempire:
-   Una lista di tutti i problemi conosciuti relativi al modulo,
-   insime a qualche indicazione sul fatto che tali problemi siano
-   plausibilmente risolti in una versione successiva. Includete anche
-   una lista delle restrizioni sulle funzionalità fornite dal
-   modulo: tipi di dati che non si è in grado di gestire, problematiche
-   relative all'efficienza e le circostanze nelle quali queste possono
-   sorgere, limitazioni pratiche sugli insiemi dei dati, casi
-   particolari che non sono (ancora) gestiti, e così via.
-
 No bugs have been reported.
 
 Please report any bugs or feature requests through http://rt.cpan.org/
 
+Due to the fact that Perl code is embedded directly into the template,
+you have to take into consideration all the possible security implications.
 
 =head1 AUTHOR
 

@@ -43,6 +43,9 @@ my %case_for = (
       "[% print \"ciao\\n\"; %] whatever\n\nafter",
       "ciao\n whatever\n\nafter",
    ],
+   'weird empty block' => [
+      '[[%%]%', '[%',
+   ],
 );
 
 my $some_spaces = "  \n \t \n\n ";

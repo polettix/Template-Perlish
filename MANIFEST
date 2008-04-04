@@ -3,7 +3,10 @@ Changes
 MANIFEST
 Makefile.PL
 README
-lib/Template/Trivial.pm
+lib/Template/Perlish.pm
 t/00.load.t
+t/01.basic.t
+t/02.complex.t
+t/03.limits.t
 t/pod-coverage.t
 t/pod.t
