@@ -43,12 +43,7 @@ sub get_variables {
 
 sub set_variables {
    my $self = shift;
-   if (@_ == 1) {
-      $self->{variables} = shift;
-   }
-   else {
-      %{$self->{variables}} = @_;
-   }
+   $self->{variables} = (@_ == 1) ? $_[0] : { @_ };
    return;
 }
 
