@@ -2,8 +2,7 @@
 use strict;
 use warnings;
 
-#use Test::More tests => 1; # last test to print
-use Test::More 'no_plan';    # substitute with previous line when done
+use Test::More tests => 10; # last test to print
 
 BEGIN {
    use_ok('Template::Perlish');
@@ -62,4 +61,18 @@ At least a block
 END_OF_TEMPLATE
    my $processed = $tt->process($template, {ciao => 'a tutti'});
    is($processed, $result, 'simple template with a variable');
+}
+{
+   my $template = <<'END_OF_TEMPLATE';
+[% my $ciao = "a tutti"; %]This is a simple template with nothing really interesting.
+[% $ciao %]
+At least a block
+END_OF_TEMPLATE
+   my $result = <<END_OF_TEMPLATE;
+This is a simple template with nothing really interesting.
+a tutti
+At least a block
+END_OF_TEMPLATE
+   my $processed = $tt->process($template,);
+   is($processed, $result, 'simple template with a Perl scalar variable');
 }
