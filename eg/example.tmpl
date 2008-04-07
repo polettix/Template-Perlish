@@ -5,10 +5,10 @@ Dear [% customer %],
       for my $location (@{$variables{locations}}) {
          my ($name, @facilities) = @$location;
     %]
-    * [% print $name; %], in which we have[%
+    * [% $name %], in which we have[%
          for my $facility (@facilities) {
     %]
-       * [% print $facility
+       * [% $facility %][%
          }
       }
     %]
