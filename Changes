@@ -3,3 +3,9 @@ Revision history for Template-Perlish
 1.0  Thu Apr  3 23:19:11 2008
        Initial release.
 
+1.01 Sat Apr 5 19:49:00 2008
+       Simplified parameter grabbing in set_variables
+       Added shortcut to expand simple scalar variables
+       Added number of tests to be executed for better test reliability
+       Added compile_as_sub method and tests
+       Expanded documentation
