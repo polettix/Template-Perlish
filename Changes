@@ -9,3 +9,6 @@ Revision history for Template-Perlish
        Added number of tests to be executed for better test reliability
        Added compile_as_sub method and tests
        Expanded documentation
+       Got rid of accessors in favour of direct hash access. This keeps
+         the code at a very minimum.
+       Added tptree script and companions.
