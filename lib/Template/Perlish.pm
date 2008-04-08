@@ -2,6 +2,7 @@ package Template::Perlish;
 
 $VERSION = '1.01';
 
+use 5.008_000;
 use warnings;
 use strict;
 use Carp;
@@ -19,40 +20,6 @@ sub new {
    return $self;
 } ## end sub new
 
-sub get_start { return shift->{start}; }
-
-sub set_start {
-   my ($self, $value) = @_;
-   $self->{start} = $value;
-   return;
-}
-
-sub get_stop { return shift->{stop}; }
-
-sub set_stop {
-   my ($self, $value) = @_;
-   $self->{stop} = $value;
-   return;
-}
-
-sub get_variables {
-   my $v = shift->{variables};
-   return $v unless wantarray;
-   return %$v;
-}
-
-sub set_variables {
-   my $self = shift;
-   $self->{variables} = (@_ == 1) ? $_[0] : {@_};
-   return;
-}
-
-sub set_variable {
-   my ($self, $name, $value) = @_;
-   $self->get_variables()->{$name} = $value;
-   return;
-}
-
 sub process {
    my ($self, $template, $vars) = @_;
    return $self->evaluate($self->compile($template), $vars);
@@ -64,7 +31,7 @@ sub evaluate {
 
    local *STDOUT;
    open STDOUT, '>', \my $buffer or croak "open(): $OS_ERROR";
-   my %variables = ($self->get_variables(), %{$vars || {}});
+   my %variables = (%{$self->{variables}}, %{$vars || {}});
    eval $compiled;
    return $buffer;
 } ## end sub evaluate
@@ -73,8 +40,8 @@ sub compile {
    my $self = shift;
    my ($template) = @_;
 
-   my $starter = $self->get_start();
-   my $stopper = $self->get_stop();
+   my $starter = $self->{start};
+   my $stopper = $self->{stop};
 
    my $compiled = "print {*STDOUT} '';\n\n";
    my $pos      = 0;
@@ -103,6 +70,7 @@ sub compile {
       else {
          $compiled .= $code;
       }
+
    } ## end while ($pos < length $template)
    $compiled .= _simple_text(substr($template, $pos || 0));
 
@@ -110,11 +78,11 @@ sub compile {
 } ## end sub compile
 
 sub compile_as_sub {
-   my $self = shift;
+   my $self     = shift;
    my $raw_code = $self->compile(@_);
    return eval <<"END_OF_CODE";
 sub {
-   my \%variables = (\$self->get_variables(), \%{shift || {}});
+   my \%variables = (\%{\$self->{variables}}, \%{shift || {}});
    local *STDOUT;
    open STDOUT, '>', \\my \$buffer or croak "open(): \$OS_ERROR";
    { # closure to "free" the buffer
@@ -123,19 +91,19 @@ $raw_code
    return \$buffer;
 }
 END_OF_CODE
-}
+} ## end sub compile_as_sub
 
 sub _simple_text {
    my $text = shift;
-   $text =~ s/^/ /gms;
+   $text =~ s/^/ /gms; # indent, trick taken from diff -u
    return <<"END_OF_CHUNK";
 ### Verbatim text
 print {*STDOUT} do {
    my \$text = <<'END_OF_INDENTED_TEXT';
 $text
 END_OF_INDENTED_TEXT
-   \$text =~ s/^ //gms;
-   substr \$text, -1, 1, '';
+   \$text =~ s/^ //gms;      # de-indent
+   substr \$text, -1, 1, ''; # get rid of added newline
    \$text;
 };
 
@@ -317,13 +285,30 @@ on the same template many times, a typical usage is:
 
    # use the compiled template multiple times with different data
    for my $dataset (@available_data) {
-      print {*STDOUT} "DATASET\n", $tp->evaluate($dataset), "\n\n";
+      print {*STDOUT} "DATASET\n", $tp->evaluate($compiled, $dataset), "\n\n";
    }
 
+Anyway, there's a drawback in this approach: each time L<evaluate()> is
+called, the code in the string C<$compiled> is C<exec>'ed as a string,
+thus involving Perl parsing etc. In this case, the L<compile_as_sub()>
+method can come handy:
+
+   my $sub = $tp->compile_as_sub($template);
+   for my $dataset (@available_data) {
+      print {*STDOUT} "DATASET\n", $sub->($dataset), "\n\n";
+   }
+
+This has the advantage that C<$sub> is compiled only once, and is a
+Perl subroutine that can be invoked directly. As an added bonus, you get
+immediate feedback about the generated code, because you'll get back
+C<undef> if something goes wrong during parsing. On the other hand, this
+means that the Perl code is always executed (to generate the sub), thus
+you have to endure this penalty even if the compiled form isn't actually
+needed.
 
 =head1 INTERFACE 
 
-=head2 Constructor and Accessors
+=head2 Constructor
 
 =over
 
@@ -356,34 +341,8 @@ Parameters can be given directly or via a hash reference.
 By default, the delimiters are the same as TT2, i.e. C<[%> and C<%]>, and
 the variables hash is empty.
 
-=item B<< get_start(), set_start($value) >>
-
-=item B<< get_stop(), set_stop($value) >>
-
-accessors for the delimiters (see L<new()>).
-
-
-=item B<< get_variables() >>
-
-get the configured variables. These variables will be available to all
-invocations of either C<process()> or C<evaluate()>.
-
-When called in scalar context returns a reference to the hash containing
-the variables. You can set variables directly on the hash. In list
-context the whole hash will be returned (as a shallow copy).
-
-=item B<< set_variables(%new_values) >>
-
-=item B<< set_variables(\%new_values) >>
-
-set variables common to all subsequent invocations. You can pass either
-the new contents for the hash, or a reference to the hash to be used.
-
-
-=item B<< set_variable($name, $value) >>
-
-set a single variable's value, among the variables that are passed to
-all invocations.
+The return value is a reference to an anonymous hash, whose three
+elements are the ones described above. You can modify them at will.
 
 =back
 
