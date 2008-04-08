@@ -1,6 +1,6 @@
 package Template::Perlish;
 
-$VERSION = '1.01';
+$VERSION = '1.02';
 
 use 5.008_000;
 use warnings;
@@ -95,6 +95,9 @@ END_OF_CODE
 
 sub _simple_text {
    my $text = shift;
+
+   return "print {*STDOUT} '$text';\n\n" if $text !~ /[\n'\\]/;
+
    $text =~ s/^/ /gms; # indent, trick taken from diff -u
    return <<"END_OF_CHUNK";
 ### Verbatim text
