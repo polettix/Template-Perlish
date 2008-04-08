@@ -12,3 +12,7 @@ Revision history for Template-Perlish
        Got rid of accessors in favour of direct hash access. This keeps
          the code at a very minimum.
        Added tptree script and companions.
+
+1.02 
+       Simplified print statement in certain conditions
+       Added prerequisite on perl version in Build.PL
