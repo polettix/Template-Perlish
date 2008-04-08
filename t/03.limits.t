@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 37; # last test to print
+use Test::More tests => 34; # last test to print
 
 BEGIN {
    use_ok('Template::Perlish');
@@ -10,12 +10,6 @@ BEGIN {
 
 my $tt = Template::Perlish->new();
 ok($tt, 'object created');
-can_ok(
-   $tt,
-   qw( get_start get_stop set_start set_stop process ),
-);
-is($tt->get_start(),      '[%',  'block starter default');
-is($tt->get_stop(),             '%]',  'stop default');
 
 my %vars = (
    name     => 'ilnome',

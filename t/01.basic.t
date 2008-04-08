@@ -10,9 +10,9 @@ BEGIN {
 
 my $tt = Template::Perlish->new();
 ok($tt, 'object created');
-can_ok($tt, qw( get_start get_stop set_start set_stop process ),);
-is($tt->get_start(), '[%', 'block starter default');
-is($tt->get_stop(),  '%]', 'stop default');
+can_ok($tt, qw( process compile compile_as_sub ),);
+is($tt->{start}, '[%', 'block starter default');
+is($tt->{stop},  '%]', 'stop default');
 
 {
    my $template = <<END_OF_TEMPLATE;
