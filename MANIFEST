@@ -3,8 +3,10 @@ Changes
 MANIFEST
 Makefile.PL
 README
-eg/example.pl
 eg/example.tmpl
+eg/generate-script.pl
+eg/process.pl
+eg/show-source.pl
 lib/Template/Perlish.pm
 t/00.load.t
 t/01.basic.t
