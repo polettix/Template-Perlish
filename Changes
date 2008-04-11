@@ -14,5 +14,8 @@ Revision history for Template-Perlish
        Added tptree script and companions.
 
 1.02 
-       Simplified print statement in certain conditions
-       Added prerequisite on perl version in Build.PL
+       Simplified print statement in certain conditions.
+       Added prerequisite on perl version in Build.PL.
+       Added an --edefine|--eval-define|-E option to tptree.
+       Fixed some parts in the documentation.
+       Added a "SHOULD YOU USE THIS" section.
