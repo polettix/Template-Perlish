@@ -14,19 +14,13 @@ use Template::Perlish;
 
 my %config = (source => '', dest => '', process => '.');
 GetOptions(
-   \%config,
-   'usage',
-   'help',
-   'man',
-   'version',
-   'source|src|s=s',
-   'dest|dst|d=s',
-   'define|D=s@',
-   'hdefine|hex-define|H|X=s@',
-   'sdefine|storable-define|S=s@',
-   'sstdin|storable-stdin|i!',
-   'process|p=s',
-   'verbose|v!',
+   \%config,                    'usage',
+   'help',                      'man',
+   'version',                   'source|src|s=s',
+   'dest|dst|d=s',              'define|D=s@',
+   'hdefine|hex-define|H|X=s@', 'sdefine|storable-define|S=s@',
+   'edefine|eval-define|E=s@',  'sstdin|storable-stdin|i!',
+   'process|p=s',               'verbose|v!',
    'variables|V!',
 );
 
@@ -97,10 +91,11 @@ sub input_file_iterator {
 
 sub get_variables {
    my %variables;
-   for my $dtype (qw( define hdefine sdefine )) {
+   for my $dtype (qw( define edefine hdefine sdefine )) {
       my $definitions = $config{$dtype};
       my $filter      = {
          define  => sub { shift },
+         edefine => sub { eval shift },
          hdefine => sub { pack 'H*', shift },
          sdefine => sub { thaw pack 'H*', shift },
       }->{$dtype};
@@ -108,7 +103,7 @@ sub get_variables {
          my ($name, $value) = split /=/, $definition, 2;
          $variables{$name} = defined $value ? $filter->($value) : 1;
       }
-   } ## end for my $dtype (qw( define hdefine ddefine sdefine ))
+   } ## end for my $dtype (qw( define edefine hdefine sdefine ))
 
    if (exists $config{sstdin}) {
       my $href = fd_retrieve(\*STDIN);
@@ -165,7 +160,7 @@ Ask the version number to the script itself, calling:
 
    tptree [--source|--src|-s directory] [--dest|--dst|-d directory]
       [--process|-p regex] [--verbose|-v] [--variables|-V]
-      [--define|-D item] [--ddefine|--dumper-define|--eval-define|-E item]
+      [--define|-D item] [--edefine|--eval-define|-E item]
       [--hdefine|--hex-define|-H|-X item] 
       [--sdefine|--storable-define|-S item]
       [--sstdin|--storable-stdin|-i]
@@ -253,6 +248,16 @@ command line:
 =item --define | -D name=value
 
 set name as value
+
+=item --edefine | --eval-define | -E name=expression
+
+evaluate expression and set name to the result. So, for example you can
+say:
+
+   name='[qw(ciao a tutti)]'
+
+and get name set to an anonymous array containing three elements
+(guess which?)
 
 =item --hdefine | --hex-define | -H | -X name=hexvalue
 
