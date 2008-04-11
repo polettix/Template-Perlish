@@ -1,8 +1,49 @@
-Template::Perlish version 1.0
+Template::Perlish version 1.0x
 
 Template::Perlish is Yet Another Templating system for Perl. Its goal
 is to be tiny but retain the full power of Perl for most challenging
 situations.
+
+SHOULD YOU USE THIS?
+
+You're probably looking at the tons and tons of templating systems
+available around - should you use this?
+
+This system is quite basic and useful for simple situations. Say you
+have a bunch of templates in which you want to put some variables -
+then it's ok. On top of this, say that you want to add some simple
+logic - like a couple of IF's or iterating over an array - then
+it's ok again. For everything more complicated you should probably
+look elsewhere.
+
+As a summary:
+
+PRO
+   lightweight, a single-file module with minimal requirements that
+   you can easily embed in your script;
+
+PRO
+   simple approach to variable substitution, following Template::Toolkit
+   to cope with scalars, hashes and arrays;
+
+PRO/CON
+   Perl code to handle all logic. This can be regarded as a PRO if you're
+   a Perl programmer, because you already know the syntax; this is
+   definitively a CON in all other cases, probably;
+
+CON
+   you have to explicitly code everything that goes beyond simple variable
+   stuffing into a template.
+
+
+If you think that this module does not fit your requirements,
+my personal suggestion for a template system is Template::Toolkit:
+it's complete, easy to use and extensible, has excellent documentation 
+(including a book and a quick reference guide) and support. Do you need 
+anything more? But don't trust me! Take a look at
+http://perl.apache.org/docs/tutorials/tmpl/comparison/comparison.html ,
+where you can find a fairly complete comparison about the "streamline"
+templating systems in Perl, and decide by yourself!
 
 
 INSTALLATION
