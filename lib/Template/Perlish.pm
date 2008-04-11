@@ -146,10 +146,9 @@ __END__
 
 Template::Perlish - Yet Another Templating system for Perl
 
-
 =head1 VERSION
 
-This document describes Template::Perlish version 1.0. Most likely, this
+This document describes Template::Perlish version 1.02. Most likely, this
 version number here is outdate, and you should peek the source.
 
 
@@ -193,22 +192,70 @@ version number here is outdate, and you should peek the source.
       director => { surname => 'Poletti' },
    });
 
-   # The above prints:
-   #
-   #   Dear Ciccio Riccio,
-   #   
-   #      we are pleased to present you the following items:
-   #   
-   #      * ciao
-   #      * a
-   #      * tutti
-   #      * quanti
-   #   
-   #   Please consult our complete catalog at http://whateeeeever/.
-   #   
-   #   Yours,
-   #   
-   #       Poletti.
+The above prints:
+
+   Dear Ciccio Riccio,
+   
+      we are pleased to present you the following items:
+   
+      * ciao
+      * a
+      * tutti
+      * quanti
+   
+   Please consult our complete catalog at http://whateeeeever/.
+   
+   Yours,
+   
+         Poletti.
+
+=head1 SHOULD YOU USE THIS?
+
+You're probably looking at the tons and tons of templating systems
+available around - should you use this?
+
+This system is quite basic and useful for simple situations. Say you
+have a bunch of templates in which you want to put some variables -
+then it's ok. On top of this, say that you want to add some simple
+logic - like a couple of IF's or iterating over an array - then
+it's ok again. For everything more complicated you should probably
+look elsewhere.
+
+As a summary:
+
+=over
+
+=item PRO
+
+lightweight, a single-file module with minimal requirements that you
+can easily embed in your script;
+
+=item PRO
+
+simple approach to variable substitution, following Template::Toolkit
+to cope with scalars, hashes and arrays;
+
+=item PRO/CON
+
+Perl code to handle all logic. This can be regarded as a PRO if you're
+a Perl programmer, because you already know the syntax; this is
+definitively a CON in all other cases, probably;
+
+=item CON
+
+you have to explicitly code everything that goes beyond simple variable
+stuffing into a template.
+
+=back
+
+If you think that this module does not fit your requirements,
+my personal suggestion for a template system is L<Template::Toolkit>: 
+it's complete, easy to use and extensible, has excellent documentation 
+(including a book and a quick reference guide) and support. Do you need 
+anything more? But don't trust me! Take a look at
+L<http://perl.apache.org/docs/tutorials/tmpl/comparison/comparison.html>,
+where you can find a fairly complete comparison about the "streamline"
+templating systems in Perl, and decide by yourself!
 
 =head1 DESCRIPTION
 
@@ -296,7 +343,8 @@ called, the code in the string C<$compiled> is C<exec>'ed as a string,
 thus involving Perl parsing etc. In this case, the L<compile_as_sub()>
 method can come handy:
 
-   my $sub = $tp->compile_as_sub($template);
+   my $sub = $tp->compile_as_sub($template)
+      or die "template did not compile: $EVAL_ERROR";
    for my $dataset (@available_data) {
       print {*STDOUT} "DATASET\n", $sub->($dataset), "\n\n";
    }
