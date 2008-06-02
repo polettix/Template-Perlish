@@ -1,0 +1,20 @@
+---
+name: Template-Perlish
+version: 1.02
+author:
+  - 'Flavio Poletti <flavio [at] polettix [dot] it>'
+abstract: Yet Another Templating system for Perl
+license: perl
+resources:
+  license: http://dev.perl.org/licenses/
+requires:
+  Test::More: 0
+  perl: 5.8.0
+provides:
+  Template::Perlish:
+    file: lib/Template/Perlish.pm
+    version: 1.02
+generated_by: Module::Build version 0.2808
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2
