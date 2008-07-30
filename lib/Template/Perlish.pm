@@ -67,6 +67,9 @@ sub compile {
       elsif (my ($scalar) = $code =~ m{\A\s* (\$ [a-zA-Z_]\w*) \s*\z}mxs) {
          $compiled .= "\nprint {*STDOUT} $scalar; ### straight scalar\n\n";
       }
+      elsif (substr($code, 0, 1) eq '=') {
+         $compiled .= _expression(substr $code, 1);
+      }
       else {
          $compiled .= $code;
       }
@@ -132,12 +135,26 @@ sub _variable {
          last;
       }
    }
-   \$value = '' unless defined \$value;
-   print {*STDOUT} \$value;
+   print {*STDOUT} \$value if defined \$value;
 }
 
 END_OF_CHUNK
 } ## end sub _variable
+
+sub _expression {
+   my $expression = shift;
+   return <<"END_OF_CHUNK";
+# Expression to be evaluated and printed out
+{
+   my \$value = do {{
+$expression
+   }};
+   print {*STDOUT} \$value if defined \$value;
+}
+
+END_OF_CHUNK
+
+}
 
 1;    # Magic true value required at end of module
 __END__
@@ -165,9 +182,10 @@ version number here is outdate, and you should peek the source.
       we are pleased to present you the following items:
    [%
       my $items = $variables{items}; # Available %variables
+      my $counter = 0;
       for my $item (@$items) {
    %]
-      * [% $item %]
+      [%= ++$counter %]. [% $item %]
    [%
       }
    %]
@@ -198,10 +216,10 @@ The above prints:
    
       we are pleased to present you the following items:
    
-      * ciao
-      * a
-      * tutti
-      * quanti
+      1. ciao
+      2. a
+      3. tutti
+      4. quanti
    
    Please consult our complete catalog at http://whateeeeever/.
    
@@ -301,7 +319,7 @@ I<command>, and treated specially. All the rest is treated as simple
 text. Of course, you can modify the start and stop delimiter for a
 command.
 
-I<Commands> can be of three different types:
+I<Commands> can be of four different types:
 
 =over
 
@@ -316,7 +334,13 @@ remember to use numbers ;)
 
 =item B<scalar Perl variable>
 
-that is expanded with the value of the given scalar variable
+that is expanded with the value of the given scalar variable;
+
+=item B<Perl expression>
+
+this MUST have a C<=> equal sign immediately after the opener, and
+contain a valid Perl expression. This expression is evaluated
+in scalar context and the result is printed;
 
 =item B<code>
 
@@ -513,6 +537,16 @@ you can also you the short form:
   [% $variable %]
 
 Note: only the scalar variable name, nothing else apart optional spaces.
+If you have something fancier, i.e. a Perl expression, you can use a
+shortcut to evaluate it and print all in one single command:
+
+  [%= my $value = 100; "*** $variable -> $value ***" %]
+
+Note that there is an equal sign (C<">) immediately after the command
+opener C<[%>. The Perl expression is evaluated in scalar context, and
+the result is printed (if defined, otherwise it's skipped). This sort
+of makes the previous short form for simple scalars a bit outdated,
+but you spare a character in any case and it's just DWIM.
 
 If you know Perl, you should not have problems using the control structures.
 Just intersperse the code with the templates as you would normally do
