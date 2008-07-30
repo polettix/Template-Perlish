@@ -1,6 +1,6 @@
 ---
 name: Template-Perlish
-version: 1.02
+version: 1.03
 author:
   - 'Flavio Poletti <flavio [at] polettix [dot] it>'
 abstract: Yet Another Templating system for Perl
@@ -13,7 +13,7 @@ requires:
 provides:
   Template::Perlish:
     file: lib/Template/Perlish.pm
-    version: 1.02
+    version: 1.03
 generated_by: Module::Build version 0.2808
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html
