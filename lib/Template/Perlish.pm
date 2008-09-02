@@ -1,6 +1,6 @@
 package Template::Perlish;
 
-$VERSION = '1.04';
+$VERSION = '1.05';
 
 use 5.008_000;
 use warnings;
@@ -156,6 +156,30 @@ END_OF_CHUNK
 
 }
 
+# Function-oriented interface
+sub import {
+   my $package = shift;
+
+   for my $sub (@_) {
+      croak "subroutine '$sub' not exportable"
+         unless grep { $sub eq $_ } qw( render );
+
+      my $caller = caller();
+
+      no strict 'refs';
+      local $SIG{__WARN__} = \&Carp::carp;
+      *{$caller . '::' . $sub} = \&{$package . '::' . $sub};
+   }
+
+   return;
+}
+
+sub render {
+   my $template = shift;
+   my %variables = ref($_[0]) ? %{$_[0]} : @_;
+   return __PACKAGE__->new()->process($template, \%variables);
+}
+
 1;    # Magic true value required at end of module
 __END__
 
@@ -213,19 +237,25 @@ version number here is outdate, and you should peek the source.
 The above prints:
 
    Dear Ciccio Riccio,
-   
+
       we are pleased to present you the following items:
-   
+
       1. ciao
       2. a
       3. tutti
       4. quanti
-   
+
    Please consult our complete catalog at http://whateeeeever/.
-   
+
    Yours,
-   
+
          Poletti.
+
+There is also a convenience function for one-shot templates:
+
+   use Template::Perlish qw( render );
+   my $rendered = render($template, \%variables);
+
 
 =head1 SHOULD YOU USE THIS?
 
@@ -404,6 +434,31 @@ you have to endure this penalty even if the compiled form isn't actually
 needed.
 
 =head1 INTERFACE 
+
+=head2 One Shot Templates
+
+The following convenience function can be used to quickly render a
+template:
+
+=over
+
+=item B<render>
+
+   use Template::Perlish qw( render );
+   my $rendered = render($template);             # OR
+   my $rendered = render($template, %variables); # OR
+   my $rendered = render($template, \%variables);
+
+if you already have a template and the variables to fill it in, this
+is probably the quickest thing to do.
+
+You can pass the template alone, or you can pass the variables as
+well, either as a flat list (that will be converted back to a hash)
+or as a single hash reference.
+
+Returns the rendered template, i.e. the same output as L</process>.
+
+=back
 
 =head2 Constructor
 

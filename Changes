@@ -1,5 +1,9 @@
 Revision history for Template-Perlish
 
+1.05 Tue Sep 02 12:32:00 2008
+       Added a convenience function 'render' for one-shot template
+       renderings.
+
 1.04 Tue Sep 02 02:26:00 2008
        Changed order of chunks in this file :)
        Removed dependency on version in Makefile.PL
