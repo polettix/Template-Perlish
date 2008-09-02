@@ -1,6 +1,6 @@
 package Template::Perlish;
 
-$VERSION = '1.03';
+$VERSION = '1.04';
 
 use 5.008_000;
 use warnings;
