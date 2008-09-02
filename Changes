@@ -1,7 +1,20 @@
 Revision history for Template-Perlish
 
-1.0  Thu Apr  3 23:19:11 2008
-       Initial release.
+1.04 Tue Sep 02 02:26:00 2008
+       Changed order of chunks in this file :)
+       Removed dependency on version in Makefile.PL
+
+1.03 Wed Jul 30 13:03:09 2008
+       Fixed internal POD links in documentation.
+       Fixed some stuff in the docs.
+       Added "evaluate and print" of Perl expressions via [%= ... %]
+
+1.02 Fri Apr 11 23:00:00 2008
+       Simplified print statement in certain conditions.
+       Added prerequisite on perl version in Build.PL.
+       Added an --edefine|--eval-define|-E option to tptree.
+       Fixed some parts in the documentation.
+       Added a "SHOULD YOU USE THIS" section.
 
 1.01 Sat Apr 5 19:49:00 2008
        Simplified parameter grabbing in set_variables
@@ -13,14 +26,5 @@ Revision history for Template-Perlish
          the code at a very minimum.
        Added tptree script and companions.
 
-1.02 Fri Apr 11 23:00:00 2008
-       Simplified print statement in certain conditions.
-       Added prerequisite on perl version in Build.PL.
-       Added an --edefine|--eval-define|-E option to tptree.
-       Fixed some parts in the documentation.
-       Added a "SHOULD YOU USE THIS" section.
-
-1.03 Wed Jul 30 13:03:09 2008
-       Fixed internal POD links in documentation.
-       Fixed some stuff in the docs.
-       Added "evaluate and print" of Perl expressions via [%= ... %]
+1.0  Thu Apr  3 23:19:11 2008
+       Initial release.
