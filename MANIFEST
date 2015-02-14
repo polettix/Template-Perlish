@@ -15,6 +15,7 @@ t/02.complex.t
 t/03.limits.t
 t/04.as_sub.t
 t/05.functional.t
+t/06.errors.t
 t/pod-coverage.t
 t/pod.t
 script/generate-standalone
