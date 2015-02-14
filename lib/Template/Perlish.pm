@@ -1,6 +1,6 @@
 package Template::Perlish;
 
-$VERSION = '1.05';
+$VERSION = '1.20';
 
 use 5.008_000;
 use warnings;
@@ -28,8 +28,12 @@ sub import {
 
 sub render {
    my $template = shift;
-   my %variables = ref($_[0]) ? %{$_[0]} : @_;
-   return __PACKAGE__->new()->process($template, \%variables);
+   my (%variables, %params);
+   if (@_) {
+      %variables = ref($_[0]) ? %{shift @_} : splice @_, 0;
+      %params = %{shift @_} if @_;
+   }
+   return __PACKAGE__->new(%params)->process($template, \%variables);
 }
 
 # Object-oriented interface
@@ -37,6 +41,7 @@ sub new {
    my $self = bless {
       start     => '[%',
       stop      => '%]',
+      utf8      => 1,
       variables => {},
      },
      shift;
@@ -75,7 +80,9 @@ sub _compile_code_text {
    my $starter = $self->{start};
    my $stopper = $self->{stop};
 
-   my $compiled = "# line 1 'input'\nprint {*STDOUT} '';\n\n";
+   my $compiled = "# line 1 'input'\n";
+   $compiled .= "use utf8;\n\n" if $self->{utf8};
+   $compiled .= "print {*STDOUT} '';\n\n";
    my $pos      = 0;
    my $line_no  = 1;
    while ($pos < length $template) {
@@ -146,14 +153,21 @@ sub _compile_sub {
 
    my @warnings;
    {
+      my $utf8 = $self->{utf8} ? 1 : 0;
       local $SIG{__WARN__} = sub { push @warnings, @_ };
       $outcome->{sub} = eval <<"END_OF_CODE";
    sub {
       my \%variables = (\%{\$self->{variables}}, \%{shift || {}});
       local *STDOUT;
       open STDOUT, '>', \\my \$buffer or croak "open(): \$OS_ERROR";
+      binmode STDOUT, ':encoding(utf8)' if $utf8;
       { # closure to "free" the \$buffer variable
 $outcome->{code_text}
+      }
+      close STDOUT;
+      if ($utf8) {
+         require Encode;
+         \$buffer = Encode::decode(utf8 => \$buffer);
       }
       return \$buffer;
    }
@@ -259,13 +273,15 @@ END_OF_CHUNK
 1;    # Magic true value required at end of module
 __END__
 
+=encoding utf8
+
 =head1 NAME
 
 Template::Perlish - Yet Another Templating system for Perl
 
 =head1 VERSION
 
-This document describes Template::Perlish version 1.03. Most likely, this
+This document describes Template::Perlish version 1.20. Most likely, this
 version number here is outdate, and you should peek the source.
 
 
@@ -804,5 +820,12 @@ modify it under the terms of the Artistic License 2.0.
 This program is distributed in the hope that it will be useful,
 but without any warranty; without even the implied warranty of
 merchantability or fitness for a particular purpose.
+
+=head1 SEE ALSO
+
+The best templating system in the world is undoubtfully L<Template::Toolkit>.
+
+See L<http://perl.apache.org/docs/tutorials/tmpl/comparison/comparison.html>
+for a comparison (and a fairly complete list) of different templating modules.
 
 =cut
