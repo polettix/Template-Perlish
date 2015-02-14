@@ -8,7 +8,31 @@ use strict;
 use Carp;
 use English qw( -no_match_vars );
 
-# Module implementation here
+# Function-oriented interface
+sub import {
+   my $package = shift;
+
+   for my $sub (@_) {
+      croak "subroutine '$sub' not exportable"
+         unless grep { $sub eq $_ } qw( render );
+
+      my $caller = caller();
+
+      no strict 'refs';
+      local $SIG{__WARN__} = \&Carp::carp;
+      *{$caller . '::' . $sub} = \&{$package . '::' . $sub};
+   }
+
+   return;
+}
+
+sub render {
+   my $template = shift;
+   my %variables = ref($_[0]) ? %{$_[0]} : @_;
+   return __PACKAGE__->new()->process($template, \%variables);
+}
+
+# Object-oriented interface
 sub new {
    my $self = bless {
       start     => '[%',
@@ -26,75 +50,151 @@ sub process {
 }
 
 sub evaluate {
-   my $self = shift;
-   my ($compiled, $vars) = @_;
-
-   local *STDOUT;
-   open STDOUT, '>', \my $buffer or croak "open(): $OS_ERROR";
-   my %variables = (%{$self->{variables}}, %{$vars || {}});
-   eval $compiled;
-   return $buffer;
+   my ($self, $compiled, $vars) = @_;
+   $self->_compile_sub($compiled)
+      unless exists $compiled->{sub};
+   return $compiled->{sub}->($vars);
 } ## end sub evaluate
 
 sub compile {
+   my ($self, undef, %args) = @_;
+   my $outcome = $self->_compile_code_text($_[1]);
+   return $outcome if $args{no_check};
+   return $self->_compile_sub($outcome);
+}
+
+sub compile_as_sub {
+   my $self = shift;
+   return $self->compile($_[0])->{'sub'};
+} ## end sub compile_as_sub
+
+sub _compile_code_text {
    my $self = shift;
    my ($template) = @_;
 
    my $starter = $self->{start};
    my $stopper = $self->{stop};
 
-   my $compiled = "print {*STDOUT} '';\n\n";
+   my $compiled = "# line 1 'input'\nprint {*STDOUT} '';\n\n";
    my $pos      = 0;
+   my $line_no  = 1;
    while ($pos < length $template) {
 
       # Find starter and emit all previous text as simple text
       my $start = index $template, $starter, $pos;
       last if $start < 0;
-      $compiled .= _simple_text(substr $template, $pos, $start - $pos)
+      my $chunk = substr $template, $pos, $start - $pos;
+      $compiled .= _simple_text($chunk)
         if $start > $pos;
+
+      # Update scanning variables. The line counter is advanced for
+      # the chunk but not yet for the $starter, so that error reporting
+      # for unmatched $starter will point to the correct line
       $pos = $start + length $starter;
+      $line_no += ($chunk =~ tr/\n//);
 
       # Grab code
       my $stop = index $template, $stopper, $pos;
-      croak "unclosed $starter at position $pos" if $stop < 0;
+      if ($stop < 0) { # no matching $stopper, bummer!
+         my $section = _extract_section({ template => $template }, $line_no);
+         die "unclosed starter '$starter' at line $line_no\n$section";
+      }
       my $code = substr $template, $pos, $stop - $pos;
-      $pos = $stop + length $stopper;
 
-      next unless length $code;
-      if ($code =~ m{\A\s* \w+(?:\.\w+)* \s*\z}mxs) {
-         $compiled .= _variable($code);
+      # Now I can advance the line count considering the $starter too
+      $line_no += ($starter =~ tr/\n//);
+
+      if (length $code) {
+         if ($code =~ m{\A\s* \w+(?:\.\w+)* \s*\z}mxs) {
+            $compiled .= _variable($code);
+         }
+         elsif (my ($scalar) = $code =~ m{\A\s* (\$ [a-zA-Z_]\w*) \s*\z}mxs) {
+            $compiled .= "\nprint {*STDOUT} $scalar; ### straight scalar\n\n";
+         }
+         elsif (substr($code, 0, 1) eq '=') {
+            $compiled .= "\n# line $line_no 'template<3,$line_no>'\n" .
+               _expression(substr $code, 1);
+         }
+         else {
+            $compiled .= "\n# line $line_no 'template<0,$line_no>'\n" . $code;
+         }
       }
-      elsif (my ($scalar) = $code =~ m{\A\s* (\$ [a-zA-Z_]\w*) \s*\z}mxs) {
-         $compiled .= "\nprint {*STDOUT} $scalar; ### straight scalar\n\n";
-      }
-      elsif (substr($code, 0, 1) eq '=') {
-         $compiled .= _expression(substr $code, 1);
-      }
-      else {
-         $compiled .= $code;
-      }
+
+      # Update scanning variables
+      $pos = $stop + length $stopper;
+      $line_no += (($code . $stopper) =~ tr/\n//);
 
    } ## end while ($pos < length $template)
+
+   # put last part of input string as simple text
    $compiled .= _simple_text(substr($template, $pos || 0));
 
-   return $compiled;
+   return {
+      template  => $template,
+      code_text => $compiled,
+   };
+}
+
+sub _compile_sub {
+   my ($self, $outcome) = @_;
+
+   {
+      open my $fh, '>:raw', '/tmp/generated.pl'
+         or die "open(): $OS_ERROR";
+      print {$fh} $outcome->{code_text};
+   }
+
+   my @warnings;
+   {
+      local $SIG{__WARN__} = sub { push @warnings, @_ };
+      $outcome->{sub} = eval <<"END_OF_CODE";
+   sub {
+      my \%variables = (\%{\$self->{variables}}, \%{shift || {}});
+      local *STDOUT;
+      open STDOUT, '>', \\my \$buffer or croak "open(): \$OS_ERROR";
+      { # closure to "free" the \$buffer variable
+$outcome->{code_text}
+      }
+      return \$buffer;
+   }
+END_OF_CODE
+      return $outcome if $outcome->{sub};
+   }
+
+   my $error = $EVAL_ERROR;
+   my ($offset, $starter, $line_no) =
+      $error =~ m{at\ 'template<(\d+),(\d+)>'\ line\ (\d+)}mxs;
+   $line_no -= $offset;
+   s{at\ 'template<\d+,\d+>'\ line\ (\d+)}{'at line ' . ($1 - $offset)}egmxs
+      for @warnings, $error;
+   if ($line_no == $starter) {
+      s{,\ near\ "\#\ line.*?\n\s+}{, near "}gmxs
+         for @warnings, $error;
+   }
+
+   my $section = _extract_section($outcome, $line_no);
+   $error = join '', @warnings, $error, "\n", $section;
+
+   die $error;
 } ## end sub compile
 
-sub compile_as_sub {
-   my $self     = shift;
-   my $raw_code = $self->compile(@_);
-   return eval <<"END_OF_CODE";
-sub {
-   my \%variables = (\%{\$self->{variables}}, \%{shift || {}});
-   local *STDOUT;
-   open STDOUT, '>', \\my \$buffer or croak "open(): \$OS_ERROR";
-   { # closure to "free" the buffer
-$raw_code
-   }
-   return \$buffer;
+sub _extract_section {
+   my ($hash, $line_no) = @_;
+   $line_no--; # for proper comparison with 0-based array
+   my $start = $line_no - 3;
+   my $end = $line_no + 3;
+
+   my @lines = split /\n/, $hash->{template};
+   $start = 0 if $start < 0;
+   $end = $#lines if $end > $#lines;
+   my $n_chars = length($end + 1);
+   return join '', map {
+      sprintf "%s%${n_chars}d| %s\n",
+         (($_ == $line_no) ? '>>' : '  '),
+         ($_ + 1),
+         $lines[$_];
+   } $start .. $end;
 }
-END_OF_CODE
-} ## end sub compile_as_sub
 
 sub _simple_text {
    my $text = shift;
@@ -154,30 +254,6 @@ $expression
 
 END_OF_CHUNK
 
-}
-
-# Function-oriented interface
-sub import {
-   my $package = shift;
-
-   for my $sub (@_) {
-      croak "subroutine '$sub' not exportable"
-         unless grep { $sub eq $_ } qw( render );
-
-      my $caller = caller();
-
-      no strict 'refs';
-      local $SIG{__WARN__} = \&Carp::carp;
-      *{$caller . '::' . $sub} = \&{$package . '::' . $sub};
-   }
-
-   return;
-}
-
-sub render {
-   my $template = shift;
-   my %variables = ref($_[0]) ? %{$_[0]} : @_;
-   return __PACKAGE__->new()->process($template, \%variables);
 }
 
 1;    # Magic true value required at end of module
@@ -333,8 +409,7 @@ You bet, this is another templating system for Perl. Yes, because
 it's the dream of every Perl programmer, me included. I needed something
 that's easily portable, with no dependencies apart a recent Perl version
 (but with some tweaking this should be solved), much in the spirit of
-the ::Tiny modules. And yes, my dream is to fill that ::Tiny gap some
-time in the future, but with another module.
+the ::Tiny modules.
 
 Wherever possible I try to mimic Template::Toolkit, but I stop quite
 early. If you only have to fill a template with a bunch of variables,
@@ -397,7 +472,7 @@ The basic operation mode is via the L</process> method, which works much
 like in TT2. Anyway, this method will always give you back the generated
 stuff, and won't print anything. This can probably be less memory
 efficient when big templates are involved, but in this case you should
-probably head somewhere else.
+probably head somewhere else. Or not.
 
    # print out the template filled with some variables
    print $tp->process($tmpl, { key => 'value' });
@@ -411,13 +486,11 @@ on the same template many times, a typical usage is:
 
    # use the compiled template multiple times with different data
    for my $dataset (@available_data) {
-      print {*STDOUT} "DATASET\n", $tp->evaluate($compiled, $dataset), "\n\n";
+      print "DATASET\n", $tp->evaluate($compiled, $dataset), "\n\n";
    }
 
-Anyway, there's a drawback in this approach: each time L</evaluate> is
-called, the code in the string C<$compiled> is C<exec>'ed as a string,
-thus involving Perl parsing etc. In this case, the L</compile_as_sub>
-method can come handy:
+There is also a facility - namely C</compile_as_sub> - that returns an
+anonymous sub that encapsulates the C<evaluate> call above:
 
    my $sub = $tp->compile_as_sub($template)
       or die "template did not compile: $EVAL_ERROR";
@@ -425,13 +498,18 @@ method can come handy:
       print {*STDOUT} "DATASET\n", $sub->($dataset), "\n\n";
    }
 
-This has the advantage that C<$sub> is compiled only once, and is a
-Perl subroutine that can be invoked directly. As an added bonus, you get
-immediate feedback about the generated code, because you'll get back
-C<undef> if something goes wrong during parsing. On the other hand, this
-means that the Perl code is always executed (to generate the sub), thus
-you have to endure this penalty even if the compiled form isn't actually
-needed.
+As of release 1.2 the error reporting facility has been improved to
+provide feedback if there are issues with the provided template, e.g.
+when there is a syntax error in the Perl code inside. When an error
+arises, the module will C<die()> with a meaningful message about where
+the error is. This happens with all the provided facilities.
+
+Error checking is turned on automatically on all facilities. You can
+avoid doing it in the C</compile> method, although the check will kick
+in at the first usage of the compiled form. To avoid the check upon
+the compilation, pass the C<no_check> option to L</compile>:
+
+   my $compiled = $tp->compile($template, no_check => 1);
 
 =head1 INTERFACE 
 
@@ -505,16 +583,19 @@ elements are the ones described above. You can modify them at will.
 
 =item B<compile>
 
-   $code_text = $tp->compile($template);
+   $compiled = $tp->compile($template);
+   $compiled = $tp->compile($template, no_check => $boolean);
 
 compile a template generating the relevant Perl code. Using this method
 is useful when the same template has to be used multiple times, so the
 compilation can be done one time only.
 
-Please note that the generated Perl code will be parsed each time you
-use it, of course.
+You can turn off checking using the c<no_check> optional parameter and
+passing a true value. The check will be performed upon the first
+usage of the compiled form though.
 
-Returns a text containing Perl code.
+Returns a hash containing, among the rest, a text version of the
+template transformed into Perl code.
 
 =item B<compile_as_sub>
 
@@ -522,12 +603,7 @@ Returns a text containing Perl code.
 
 Much like L</compile>, this method does exactly the same compilation,
 but returns a reference to an anonymous subroutine that can be used
-each time you want to "explode" the template. This has the advantage
-that you immediately know if your template compiles good (otherwise
-you will get undef) and that each following template explosion will
-not require any Perl code compilation. On the other hand, you'll have
-to endure the code compilation immediately, which could be bad for
-you if you don't end up using it.
+each time you want to "explode" the template. 
 
 The anonymous sub that is returned accepts a single, optional parameter,
 namely a reference to a hash of variables to be used in addition to the
@@ -544,10 +620,10 @@ L</evaluate> method.
    $final_text = $tp->evaluate($compiled); # OR
    $final_text = $tp->evaluate($compiled, \%variables);
 
-evaluate a template (in its compiled for, see L</compile>) with the
+evaluate a template (in its compiled form, see L</compile>) with the
 available variables. In the former form, only the already configured
 variables are used; in the latter, the given C<$variables> (which is
-a hash reference) are added, overriding any matching key.
+a hash reference) are added, overriding any corresponding key.
 
 Returns the processed text as a string.
 
@@ -645,7 +721,7 @@ prints
 
 To include a starter in the text just print it inside a Perl block:
 
-   here it comes [% print '[%'; %] the delimiter
+   here it comes [%= '[%' %] the delimiter
 
 prints:
 
@@ -661,7 +737,12 @@ So the bottom line is: who needs escaping?
 
 =head1 DIAGNOSTICS
 
-Unfortunately, the diagnostic is still quite poor.
+Diagnostics have been improved in release 1.2 with respect to previous
+versions, although there might still be some hiccups here and there.
+Errors related to the template, in particular, will show you the
+surrounding context of where the error has been detected, although the
+exact line indication might be slightly wrong. You should be able to
+find it anyway.
 
 =over
 
@@ -676,6 +757,9 @@ too old.
 a Perl block was opened but not closed.
 
 =back
+
+Other errors are generated as part of the Perl compilation, so they
+will reflect the particular compile-time error encountered at that time.
 
 
 =head1 CONFIGURATION AND ENVIRONMENT
@@ -707,79 +791,18 @@ CAVEAT EMPTOR.
 
 =head1 AUTHOR
 
-Flavio Poletti  C<< <flavio [at] polettix [dot] it> >>
+Flavio Poletti <polettix@cpan.org>
 
 
 =head1 LICENCE AND COPYRIGHT
 
-Copyright (c) 2008, Flavio Poletti C<< <flavio [at] polettix [dot] it> >>. All rights reserved.
+Copyright (c) 2008, 2015 by Flavio Poletti polettix@cpan.org.
 
-This module is free software; you can redistribute it and/or
-modify it under the same terms as Perl 5.8.x itself. See L<perlartistic>
-and L<perlgpl>.
+This module is free software.  You can redistribute it and/or
+modify it under the terms of the Artistic License 2.0.
 
-Questo modulo è software libero: potete ridistribuirlo e/o
-modificarlo negli stessi termini di Perl 5.8.x stesso. Vedete anche
-L<perlartistic> e L<perlgpl>.
-
-
-=head1 DISCLAIMER OF WARRANTY
-
-BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
-FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
-OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
-PROVIDE THE SOFTWARE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
-EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
-ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH
-YOU. SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL
-NECESSARY SERVICING, REPAIR, OR CORRECTION.
-
-IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
-WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
-REDISTRIBUTE THE SOFTWARE AS PERMITTED BY THE ABOVE LICENCE, BE
-LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL,
-OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
-THE SOFTWARE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING
-RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A
-FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER SOFTWARE), EVEN IF
-SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGES.
-
-=head1 NEGAZIONE DELLA GARANZIA
-
-Poiché questo software viene dato con una licenza gratuita, non
-c'è alcuna garanzia associata ad esso, ai fini e per quanto permesso
-dalle leggi applicabili. A meno di quanto possa essere specificato
-altrove, il proprietario e detentore del copyright fornisce questo
-software "così com'è" senza garanzia di alcun tipo, sia essa espressa
-o implicita, includendo fra l'altro (senza però limitarsi a questo)
-eventuali garanzie implicite di commerciabilità e adeguatezza per
-uno scopo particolare. L'intero rischio riguardo alla qualità ed
-alle prestazioni di questo software rimane a voi. Se il software
-dovesse dimostrarsi difettoso, vi assumete tutte le responsabilità
-ed i costi per tutti i necessari servizi, riparazioni o correzioni.
-
-In nessun caso, a meno che ciò non sia richiesto dalle leggi vigenti
-o sia regolato da un accordo scritto, alcuno dei detentori del diritto
-di copyright, o qualunque altra parte che possa modificare, o redistribuire
-questo software così come consentito dalla licenza di cui sopra, potrà
-essere considerato responsabile nei vostri confronti per danni, ivi
-inclusi danni generali, speciali, incidentali o conseguenziali, derivanti
-dall'utilizzo o dall'incapacità di utilizzo di questo software. Ciò
-include, a puro titolo di esempio e senza limitarsi ad essi, la perdita
-di dati, l'alterazione involontaria o indesiderata di dati, le perdite
-sostenute da voi o da terze parti o un fallimento del software ad
-operare con un qualsivoglia altro software. Tale negazione di garanzia
-rimane in essere anche se i dententori del copyright, o qualsiasi altra
-parte, è stata avvisata della possibilità di tali danneggiamenti.
-
-Se decidete di utilizzare questo software, lo fate a vostro rischio
-e pericolo. Se pensate che i termini di questa negazione di garanzia
-non si confacciano alle vostre esigenze, o al vostro modo di
-considerare un software, o ancora al modo in cui avete sempre trattato
-software di terze parti, non usatelo. Se lo usate, accettate espressamente
-questa negazione di garanzia e la piena responsabilità per qualsiasi
-tipo di danno, di qualsiasi natura, possa derivarne.
+This program is distributed in the hope that it will be useful,
+but without any warranty; without even the implied warranty of
+merchantability or fitness for a particular purpose.
 
 =cut
