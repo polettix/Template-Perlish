@@ -1,5 +1,8 @@
 Revision history for Template-Perlish
 
+1.21 Thu Feb 19 20:05:32 2015
+       Removed debugging leftover.
+
 1.20 Fri Feb 13 23:33:47 2015
        Enhanced error reporting.
        Refactoring.

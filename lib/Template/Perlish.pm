@@ -1,6 +1,6 @@
 package Template::Perlish;
 
-$VERSION = '1.20';
+$VERSION = '1.21';
 
 use 5.008_000;
 use warnings;
@@ -275,7 +275,7 @@ Template::Perlish - Yet Another Templating system for Perl
 
 =head1 VERSION
 
-This document describes Template::Perlish version 1.20. Most likely, this
+This document describes Template::Perlish version 1.21. Most likely, this
 version number here is outdate, and you should peek the source.
 
 
