@@ -145,12 +145,6 @@ sub _compile_code_text {
 sub _compile_sub {
    my ($self, $outcome) = @_;
 
-   {
-      open my $fh, '>:raw', '/tmp/generated.pl'
-         or die "open(): $OS_ERROR";
-      print {$fh} $outcome->{code_text};
-   }
-
    my @warnings;
    {
       my $utf8 = $self->{utf8} ? 1 : 0;
