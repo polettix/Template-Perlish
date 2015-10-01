@@ -1,5 +1,9 @@
 Revision history for Template-Perlish
 
+1.30_01 Thu Oct 01 15:52:47 2015
+       Easy %variables access from templates via V, A, H, HK, and HV
+       Additional note about security
+
 1.21 Thu Feb 19 20:05:32 2015
        Removed debugging leftover.
 
