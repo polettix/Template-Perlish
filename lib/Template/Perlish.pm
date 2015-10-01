@@ -793,7 +793,7 @@ variable, instead of:
 
    [% print $variable; %]
 
-you can also you the short form:
+you can also use the short form:
 
   [% $variable %]
 
@@ -994,7 +994,7 @@ CAVEAT EMPTOR.
 Flavio Poletti <polettix@cpan.org>
 
 
-=head1 LICENCE AND COPYRIGHT
+=head1 LICENSE AND COPYRIGHT
 
 Copyright (c) 2008, 2015 by Flavio Poletti polettix@cpan.org.
 
@@ -1007,9 +1007,12 @@ merchantability or fitness for a particular purpose.
 
 =head1 SEE ALSO
 
-The best templating system in the world is undoubtfully L<Template::Toolkit>.
+The best templating system in the world is undoubtfully
+L<Template::Toolkit>.
 
-See L<http://perl.apache.org/docs/tutorials/tmpl/comparison/comparison.html>
-for a comparison (and a fairly complete list) of different templating modules.
+See
+L<http://perl.apache.org/docs/tutorials/tmpl/comparison/comparison.html>
+for a comparison (and a fairly complete list) of different templating
+modules.
 
 =cut
