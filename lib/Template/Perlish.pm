@@ -477,6 +477,13 @@ probably (definitively?) a CON in all other cases;
 you have to explicitly code everything that goes beyond simple variable
 stuffing into a template.
 
+=item *
+
+if you care about security, you MUST look elsewhere. There are I<string>
+C<eval>s inside Template::Perlish, so you must be 100% or more sure that
+you trust your templates. Don't trust them if you don't write them
+yourself, and even in that case be suspicious.
+
 =back
 
 =back
