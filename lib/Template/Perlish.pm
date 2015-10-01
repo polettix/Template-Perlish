@@ -1,6 +1,6 @@
 package Template::Perlish;
 
-$VERSION = '1.21';
+$VERSION = '1.30_01';
 
 use 5.008_000;
 use warnings;
@@ -112,8 +112,8 @@ sub _compile_code_text {
       $line_no += ($starter =~ tr/\n//);
 
       if (length $code) {
-         if ($code =~ m{\A\s* \w+(?:\.\w+)* \s*\z}mxs) {
-            $compiled .= _variable($code);
+         if (my $path = _smart_split($code)) {
+            $compiled .= _variable($path);
          }
          elsif (my ($scalar) = $code =~ m{\A\s* (\$ [a-zA-Z_]\w*) \s*\z}mxs) {
             $compiled .= "\nprint {*STDOUT} $scalar; ### straight scalar\n\n";
@@ -142,6 +142,28 @@ sub _compile_code_text {
    };
 }
 
+sub _V {
+   my $value = shift;
+   for my $chunk (@_) {
+      if (ref($value) eq 'HASH') {
+         $value = $value->{$chunk};
+      }
+      elsif (ref($value) eq 'ARRAY') {
+         $value = $value->[$chunk];
+      }
+      else {
+         return '';
+      }
+   }
+   return defined($value) ? $value : '';
+}
+
+sub V { return '' }
+sub A { return }
+sub H { return }
+sub HK { return }
+sub HV { return }
+
 sub _compile_sub {
    my ($self, $outcome) = @_;
 
@@ -152,6 +174,30 @@ sub _compile_sub {
       $outcome->{sub} = eval <<"END_OF_CODE";
    sub {
       my \%variables = (\%{\$self->{variables}}, \%{shift || {}});
+
+      no warnings 'redefine';
+      local *V = sub {
+         my \$path = _smart_split(shift);
+         return _V(\\\%variables, \@\$path);
+      };
+      local *A = sub {
+         my \$path = _smart_split(shift);
+         return \@{_V(\\\%variables, \@\$path)};
+      };
+      local *H = sub {
+         my \$path = _smart_split(shift);
+         return \%{_V(\\\%variables, \@\$path)};
+      };
+      local *HK = sub {
+         my \$path = _smart_split(shift);
+         return keys \%{_V(\\\%variables, \@\$path)};
+      };
+      local *HV = sub {
+         my \$path = _smart_split(shift);
+         return values \%{_V(\\\%variables, \@\$path)};
+      };
+      use warnings 'redefine';
+
       local *STDOUT;
       open STDOUT, '>', \\my \$buffer or croak "open(): \$OS_ERROR";
       binmode STDOUT, ':encoding(utf8)' if $utf8;
@@ -224,27 +270,61 @@ END_OF_INDENTED_TEXT
 END_OF_CHUNK
 } ## end sub _simple_text
 
+sub _smart_split {
+   my ($input) = @_;
+   $input =~ s{\A\s+|\s+\z}{}gmxs;
+
+   my $sq = qr{(?mxs: ' [^']* ' )};
+   my $dq = qr{(?mxs: " (?:[^\\"] | \\.)* " )};
+   my $ud = qr{(?mxs: \w+ )};
+   my $chunk = qr{(?mxs: $sq | $dq | $ud)+};
+
+   # save and reset current pos() on $input
+   my $prepos = pos($input);
+   pos($input) = undef;
+
+   my @path;
+   push @path, $1 while $input =~ m{\G \.? ($chunk) }cgmxs;
+
+   # save and restore pos() on $input
+   my $postpos = pos($input);
+   pos($input) = $prepos;
+
+   return unless defined $postpos;
+   return if $postpos != length($input);
+
+   # cleanup @path components
+   for my $part (@path) {
+      my @subparts;
+      while ((pos($part) // 0) < length($part)) {
+         if ($part =~ m{\G ($sq) }cgmxs) {
+            push @subparts, substr $1, 1, length($1) - 2;
+         }
+         elsif ($part =~ m{\G ($dq) }cgmxs) {
+            my $subpart = substr $1, 1, length($1) - 2;
+            $subpart =~ s{\\(.)}{$1}gmxs;
+            push @subparts, $subpart;
+         }
+         elsif ($part =~ m{\G ($ud) }cgmxs) {
+            push @subparts, $1;
+         }
+         else { # shouldn't happen ever
+            return;
+         }
+      }
+      $part = join '', @subparts;
+   }
+   return \@path;
+}
+
 sub _variable {
    my $path = shift;
-   $path =~ s/\A\s+|\s+\z//mxsg;
+   my $DQ = '"';
+   $path = join ', ', map { $DQ . quotemeta($_) . $DQ } @$path;
+
    return <<"END_OF_CHUNK";
 ### Variable from \%variables stash
-{
-   my \$value = \\\%variables;
-   for my \$chunk (split /\\./, '$path') {
-      if (ref(\$value) eq 'HASH') {
-         \$value = \$value->{\$chunk};
-      }
-      elsif (ref(\$value) eq 'ARRAY') {
-         \$value = \$value->[\$chunk];
-      }
-      else {
-         \$value = undef;
-         last;
-      }
-   }
-   print {*STDOUT} \$value if defined \$value;
-}
+print {*STDOUT} _V(\\\%variables, $path);
 
 END_OF_CHUNK
 } ## end sub _variable
@@ -275,7 +355,7 @@ Template::Perlish - Yet Another Templating system for Perl
 
 =head1 VERSION
 
-This document describes Template::Perlish version 1.21. Most likely, this
+This document describes Template::Perlish version 1.40. Most likely, this
 version number here is outdate, and you should peek the source.
 
 
@@ -396,6 +476,13 @@ probably (definitively?) a CON in all other cases;
 
 you have to explicitly code everything that goes beyond simple variable
 stuffing into a template.
+
+=item *
+
+if you care about security, you MUST look elsewhere. There are I<string>
+C<eval>s inside Template::Perlish, so you must be 100% or more sure that
+you trust your templates. Don't trust them if you don't write them
+yourself, and even in that case be suspicious.
 
 =back
 
@@ -668,12 +755,52 @@ or explicitly using the C<%variables> hash:
 
 The former is cleaner, but the latter is more powerful of course.
 
+As of release 1.40, Template::Perlish also allows you to use more
+complex variable names in your data structure and your template, without
+having to resort to the second form. It will suffice to quote the
+relevant parts where you want to put non-alphanumeric keys, e.g.:
+
+   '$whatever'.'...'."with '\" quotes"
+
+The quoting rules for this feature added in 1.40 are the following:
+
+=over
+
+=item * B<< single quotes >>
+
+are paired and can contain any character inside, except a single quote.
+Use double quotes if you need to put single quotes. The quotes
+themselves are stripped away before figuring out what the key is;
+
+=item * B<< double quotes >>
+
+are paired and can contain any character inside, with some care. If you
+need to put double quotes inside, you have to escape with a backslash.
+Also, if you want to insert a literal backslash, you have to prepend it
+with another backslash. In general, every time you put a backslash, the
+following character is taken as-is and the escaping backslash is tossed
+away. So the following:
+
+   "\'\a\ \v\e\r\y\ \s\t\r\a\n\g\e\ \k\e\y\'"
+
+is interpreted as:
+
+   'a very strange key'
+
+(including the single quotes).
+
+=item * B<< the rest >>
+
+must be alphanumeric only, like it was before.
+
+=back
+
 If you happen to have a value you want to print inside a simple scalar
 variable, instead of:
 
    [% print $variable; %]
 
-you can also you the short form:
+you can also use the short form:
 
   [% $variable %]
 
@@ -708,6 +835,12 @@ in any other templating system:
 
 Take care to always terminate your commands with a C<;> each time
 you would do it in actual code.
+
+As of version 1.40, there are also a few functions that will make your
+life easy if you want to access the variables, namely L</V> to access a
+variable provided its dotted-path representation, L</A> for expanding
+the variable as an array, L</H> to expand it as a hash, and L</HK> and
+L</HV> to get the keys and values of a hash, respectively.
 
 There's no escaping mechanism, so if you want to include literal
 C<[%> or C<%]> you either have to change delimiters, or you have to
@@ -744,6 +877,70 @@ Another trick is to separate the two chars with an empty block:
 Including the starter in the Perl code is not a problem, of course.
 
 So the bottom line is: who needs escaping?
+
+=head2 Variables Accessors
+
+=over
+
+=item B<< A >>
+
+   A 'path.to.arrayref'
+
+get the variable at the specific path and expand it as array. This can
+be useful if you want to iterate over a variable that you know is an
+array reference:
+
+   [% for my $item (A 'my.array') { ... } %]
+
+is equivalent to:
+
+   [% for my $item (@{$variables{my}{array}}) { ... } %]
+
+but more concise and a little more readable.
+
+=item B<< H >>
+
+   H 'path.to.hashref'
+
+get the variable at the specific path and expand it as hash.
+
+=item B<< HK >>
+
+   HK 'path.to.hashref'
+
+get the variable at the specific path, expand it as hash and get its
+keys. This can be useful if you want to iterate over the keys of a
+variable that you know is an hash reference:
+
+   [% for my $key (HK 'my.hash') { ... } %]
+
+is equivalent to:
+
+   [% for my $key (keys %{$variables{my}{hash}}) { ... } %]
+
+but more concise and a bit more readable.
+
+=item B<< HV >>
+
+   HV 'path.to.hashref'
+
+similar to L</HK>, but provides values instead of keys.
+
+=item B<< V >>
+
+   V 'path.to.variable'
+
+get the variable at the specific path. The following:
+
+   [%= V('path.to.variable') + 1 %]
+
+is the same as:
+
+   [%= $variables{path}{to}{variable} + 1 %]
+
+but shorter and more readable.
+
+=back
 
 =head1 DIAGNOSTICS
 
@@ -804,7 +1001,7 @@ CAVEAT EMPTOR.
 Flavio Poletti <polettix@cpan.org>
 
 
-=head1 LICENCE AND COPYRIGHT
+=head1 LICENSE AND COPYRIGHT
 
 Copyright (c) 2008, 2015 by Flavio Poletti polettix@cpan.org.
 
@@ -817,9 +1014,12 @@ merchantability or fitness for a particular purpose.
 
 =head1 SEE ALSO
 
-The best templating system in the world is undoubtfully L<Template::Toolkit>.
+The best templating system in the world is undoubtfully
+L<Template::Toolkit>.
 
-See L<http://perl.apache.org/docs/tutorials/tmpl/comparison/comparison.html>
-for a comparison (and a fairly complete list) of different templating modules.
+See
+L<http://perl.apache.org/docs/tutorials/tmpl/comparison/comparison.html>
+for a comparison (and a fairly complete list) of different templating
+modules.
 
 =cut
