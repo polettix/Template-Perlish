@@ -8,7 +8,7 @@ plan tests => 1;
 
 {
    require Template::Perlish;
-   my $filename = $INC{'Template/Perlish.pm'};
+   (my $filename = $INC{'Template/Perlish.pm'}) =~ s{pm$}{pod};
 
    open my $fh, '<', $filename
      or BAIL_OUT "can't open '$filename'";
