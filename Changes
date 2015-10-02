@@ -1,5 +1,11 @@
 Revision history for Template-Perlish
 
+1.30_03 Fri Oct 02 07:46:09 2015
+       Removed a defined-or, for perl 5.8.x
+
+1.30_02 Thu Oct 01 17:16:19 2015
+       A few fixes on the new functions for %variables accessing
+
 1.30_01 Thu Oct 01 15:52:47 2015
        Easy %variables access from templates via V, A, H, HK, and HV
        Additional note about security

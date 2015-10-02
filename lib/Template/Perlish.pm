@@ -1,6 +1,6 @@
 package Template::Perlish;
 
-$VERSION = '1.30_01';
+$VERSION = '1.30_03';
 
 use 5.008_000;
 use warnings;
@@ -177,24 +177,24 @@ sub _compile_sub {
 
       no warnings 'redefine';
       local *V = sub {
-         my \$path = _smart_split(shift);
+         my \$path = _smart_split(shift) or return '';
          return _V(\\\%variables, \@\$path);
       };
       local *A = sub {
-         my \$path = _smart_split(shift);
-         return \@{_V(\\\%variables, \@\$path)};
+         my \$v = V(shift) or return;
+         return \@\$v;
       };
       local *H = sub {
-         my \$path = _smart_split(shift);
-         return \%{_V(\\\%variables, \@\$path)};
+         my \$v = V(shift) or return;
+         return \%\$v;
       };
       local *HK = sub {
-         my \$path = _smart_split(shift);
-         return keys \%{_V(\\\%variables, \@\$path)};
+         my \$v = V(shift) or return;
+         return keys \%\$v;
       };
       local *HV = sub {
-         my \$path = _smart_split(shift);
-         return values \%{_V(\\\%variables, \@\$path)};
+         my \$v = V(shift) or return;
+         return values \%\$v;
       };
       use warnings 'redefine';
 
@@ -296,7 +296,7 @@ sub _smart_split {
    # cleanup @path components
    for my $part (@path) {
       my @subparts;
-      while ((pos($part) // 0) < length($part)) {
+      while ((pos($part) || 0) < length($part)) {
          if ($part =~ m{\G ($sq) }cgmxs) {
             push @subparts, substr $1, 1, length($1) - 2;
          }
