@@ -1,61 +1,61 @@
-Revision history for Template-Perlish
+{{$NEXT}}
 
-1.40 Fri Oct 02 16:47:43 2015
-       Minor fixes
-       Release
+Revision history for Template-Perlish
+   - Minor fixes
+   - Release
 
 1.30_03 Fri Oct 02 07:46:09 2015
-       Removed a defined-or, for perl 5.8.x
+   - Removed a defined-or, for perl 5.8.x
 
 1.30_02 Thu Oct 01 17:16:19 2015
-       A few fixes on the new functions for %variables accessing
+   - A few fixes on the new functions for %variables accessing
 
 1.30_01 Thu Oct 01 15:52:47 2015
-       Easy %variables access from templates via V, A, H, HK, and HV
-       Additional note about security
+   - Easy %variables access from templates via V, A, H, HK, and HV
+   - Additional note about security
 
 1.21 Thu Feb 19 20:05:32 2015
-       Removed debugging leftover.
+   - Removed debugging leftover.
 
 1.20 Fri Feb 13 23:33:47 2015
-       Enhanced error reporting.
-       Refactoring.
+   - Enhanced error reporting.
+   - Refactoring.
 
 1.06 Sun Jul 21 16:51:00 2013
-       Added "SEE ALSO" section.
-       Added handling of utf-8 flag.
-       Fixed issue with POD encoding.
-       Removed POD tests for non-authors.
+   - Added "SEE ALSO" section.
+   - Added handling of utf-8 flag.
+   - Fixed issue with POD encoding.
+   - Removed POD tests for non-authors.
 
 1.05 Tue Sep 02 12:32:00 2008
-       Added a convenience function 'render' for one-shot template
-       renderings.
+   - Added a convenience function 'render' for one-shot template
+     renderings.
 
 1.04 Tue Sep 02 02:26:00 2008
-       Changed order of chunks in this file :)
-       Removed dependency on version in Makefile.PL
+   - Changed order of chunks in this file :)
+   - Removed dependency on version in Makefile.PL
 
 1.03 Wed Jul 30 13:03:09 2008
-       Fixed internal POD links in documentation.
-       Fixed some stuff in the docs.
-       Added "evaluate and print" of Perl expressions via [%= ... %]
+   - Fixed internal POD links in documentation.
+   - Fixed some stuff in the docs.
+   - Added "evaluate and print" of Perl expressions via [%= ... %]
 
 1.02 Fri Apr 11 23:00:00 2008
-       Simplified print statement in certain conditions.
-       Added prerequisite on perl version in Build.PL.
-       Added an --edefine|--eval-define|-E option to tptree.
-       Fixed some parts in the documentation.
-       Added a "SHOULD YOU USE THIS" section.
+   - Simplified print statement in certain conditions.
+   - Added prerequisite on perl version in Build.PL.
+   - Added an --edefine|--eval-define|-E option to tptree.
+   - Fixed some parts in the documentation.
+   - Added a "SHOULD YOU USE THIS" section.
 
 1.01 Sat Apr 5 19:49:00 2008
-       Simplified parameter grabbing in set_variables
-       Added shortcut to expand simple scalar variables
-       Added number of tests to be executed for better test reliability
-       Added compile_as_sub method and tests
-       Expanded documentation
-       Got rid of accessors in favour of direct hash access. This keeps
-         the code at a very minimum.
-       Added tptree script and companions.
+   - Simplified parameter grabbing in set_variables
+   - Added shortcut to expand simple scalar variables
+   - Added number of tests to be executed for better test reliability
+   - Added compile_as_sub method and tests
+   - Expanded documentation
+   - Got rid of accessors in favour of direct hash access. This keeps
+     the code at a very minimum.
+   - Added tptree script and companions.
 
 1.0  Thu Apr  3 23:19:11 2008
-       Initial release.
+   - Initial release.
