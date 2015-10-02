@@ -357,8 +357,7 @@ Template::Perlish - Yet Another Templating system for Perl
 
 =head1 VERSION
 
-This document describes Template::Perlish version 1.40. Most likely, this
-version number here is outdate, and you should peek the source.
+This document describes Template::Perlish version 1.40.
 
 
 =head1 SYNOPSIS
@@ -1005,7 +1004,7 @@ Flavio Poletti <polettix@cpan.org>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2008, 2015 by Flavio Poletti polettix@cpan.org.
+Copyright (c) 2008-2015 by Flavio Poletti C<polettix@cpan.org>.
 
 This module is free software.  You can redistribute it and/or
 modify it under the terms of the Artistic License 2.0.
