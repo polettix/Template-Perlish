@@ -1,6 +1,6 @@
 package Template::Perlish;
 
-$VERSION = '1.30_03';
+$VERSION = '1.40';
 
 use 5.008_000;
 use warnings;
@@ -199,17 +199,19 @@ sub _compile_sub {
       use warnings 'redefine';
 
       local *STDOUT;
-      open STDOUT, '>', \\my \$buffer or croak "open(): \$OS_ERROR";
+      open STDOUT, '>', \\my \$___buffer or croak "open(): \$OS_ERROR";
       binmode STDOUT, ':encoding(utf8)' if $utf8;
-      { # closure to "free" the \$buffer variable
+      my \$___previous_selection = select(STDOUT);
+      { # closure to free "my" variables
 $outcome->{code_text}
       }
+      select(\$___previous_selection);
       close STDOUT;
       if ($utf8) {
          require Encode;
-         \$buffer = Encode::decode(utf8 => \$buffer);
+         \$___buffer = Encode::decode(utf8 => \$___buffer);
       }
-      return \$buffer;
+      return \$___buffer;
    }
 END_OF_CODE
       return $outcome if $outcome->{sub};

@@ -1,5 +1,9 @@
 Revision history for Template-Perlish
 
+1.40 Fri Oct 02 16:47:43 2015
+       Minor fixes
+       Release
+
 1.30_03 Fri Oct 02 07:46:09 2015
        Removed a defined-or, for perl 5.8.x
 
