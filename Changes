@@ -4,6 +4,7 @@ Revision history for Template-Perlish
    - Minor fixes
    - Using Milla for hanlding the distribution
    - Put POD into its own file, to make mobundling leaner
+   - Moved some test in xt, removed pod test as is a duplication
 
 1.30_03 Fri Oct 02 07:46:09 2015
    - Removed a defined-or, for perl 5.8.x
