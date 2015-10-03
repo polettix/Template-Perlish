@@ -1,4 +1,6 @@
-{{$NEXT}}
+Changes for Template::Perlish:
+
+1.30_04   2015-10-03 03:57:09EDT-0400 America/New_York (TRIAL RELEASE)
    - Minor fixes
    - Using Milla for hanlding the distribution
    - Put POD into its own file, to make mobundling leaner
