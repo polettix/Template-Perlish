@@ -1,6 +1,8 @@
 Changes for Template::Perlish:
 
 {{$NEXT}}
+   - Milla's dist.ini fix
+   - release after 78 passes in CPAN Testers
 
 1.30_04   2015-10-03 03:57:09EDT-0400 America/New_York (TRIAL RELEASE)
    - Minor fixes
