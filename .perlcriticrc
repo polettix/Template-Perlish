@@ -1,0 +1,3 @@
+verbose = %m at line %L, column %c. %e. (Severity: %s)%n   ## no critic (%p)%n
+
+exclude = ValuesAndExpressions::ProhibitEmptyQuotes ControlStructures::ProhibitPostfixControls ValuesAndExpressions::ProhibitConstantPragma BuiltinFunctions::ProhibitBooleanGrep CodeLayout::ProhibitParensWithBuiltins

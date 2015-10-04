@@ -1,12 +1,12 @@
 package Template::Perlish;
 
-$VERSION = '1.40'; ## no critic (RequireUseStrict,RequireUseWarnings)
-
 use 5.008_000;
 use warnings;
 use strict;
 use Carp;
 use English qw( -no_match_vars );
+use constant ERROR_CONTEXT => 3;
+{ our $VERSION = '1.40'; }
 
 # Function-oriented interface
 sub import { ## no critic (RequireArgUnpacking)
@@ -20,7 +20,7 @@ sub import { ## no critic (RequireArgUnpacking)
 
       no strict 'refs'; ## no critic (ProhibitNoStrict)
       local $SIG{__WARN__} = \&Carp::carp;
-      *{$caller . '::' . $sub} = \&{$package . '::' . $sub};
+      *{$caller . q<::> . $sub} = \&{$package . q<::> . $sub};
    }
 
    return;
@@ -45,7 +45,7 @@ sub new { ## no critic (RequireArgUnpacking)
       variables => {},
      },
      shift;
-   %$self = (%$self, @_ == 1 ? %{$_[0]} : @_);
+   %{$self} = (%{$self}, @_ == 1 ? %{$_[0]} : @_);
    return $self;
 } ## end sub new
 
@@ -114,10 +114,10 @@ sub _compile_code_text {
          if (my $path = _smart_split($code)) {
             $compiled .= _variable($path);
          }
-         elsif (my ($scalar) = $code =~ m{\A\s* (\$ [a-zA-Z_]\w*) \s*\z}mxs) {
+         elsif (my ($scalar) = $code =~ m{\A\s* (\$ [[:alpha:]_]\w*) \s*\z}mxs) {
             $compiled .= "\nprint {*STDOUT} $scalar; ### straight scalar\n\n";
          }
-         elsif (substr($code, 0, 1) eq '=') {
+         elsif (substr($code, 0, 1) eq q<=>) {
             $compiled .= "\n# line $line_no 'template<3,$line_no>'\n" .
                _expression(substr $code, 1);
          }
@@ -216,6 +216,7 @@ END_OF_CODE
       return $outcome if $outcome->{sub};
    }
 
+   ## no critic (RegularExpressions::ProhibitEscapedMetacharacters)
    my $error = $EVAL_ERROR;
    my ($offset, $starter, $line_no) =
       $error =~ m{at\ 'template<(\d+),(\d+)>'\ line\ (\d+)}mxs;
@@ -226,6 +227,7 @@ END_OF_CODE
       s{,\ near\ "\#\ line.*?\n\s+}{, near "}gmxs
          for @warnings, $error;
    }
+   ## use critic
 
    my $section = _extract_section($outcome, $line_no);
    $error = join '', @warnings, $error, "\n", $section;
@@ -236,10 +238,10 @@ END_OF_CODE
 sub _extract_section {
    my ($hash, $line_no) = @_;
    $line_no--; # for proper comparison with 0-based array
-   my $start = $line_no - 3;
-   my $end = $line_no + 3;
+   my $start = $line_no - ERROR_CONTEXT;
+   my $end = $line_no + ERROR_CONTEXT;
 
-   my @lines = split /\n/x, $hash->{template};
+   my @lines = split /\n/mxs, $hash->{template};
    $start = 0 if $start < 0;
    $end = $#lines if $end > $#lines;
    my $n_chars = length($end + 1);
@@ -254,7 +256,7 @@ sub _extract_section {
 sub _simple_text {
    my $text = shift;
 
-   return "print {*STDOUT} '$text';\n\n" if $text !~ /[\n'\\]/x;
+   return "print {*STDOUT} '$text';\n\n" if $text !~ /[\n'\\]/mxs;
 
    $text =~ s/^/ /gmxs; # indent, trick taken from diff -u
    return <<"END_OF_CHUNK";
@@ -275,7 +277,7 @@ sub _smart_split {
    my ($input) = @_;
    $input =~ s{\A\s+|\s+\z}{}gmxs;
 
-   ## no critic (RequireExtendedFormatting)
+   ## no critic (RequireExtendedFormatting,RegularExpressions::RequireLineBoundaryMatching,RegularExpressions::RequireDotMatchAnything)
    my $sq = qr{(?mxs: ' [^']* ' )};
    my $dq = qr{(?mxs: " (?:[^\\"] | \\.)* " )};
    my $ud = qr{(?mxs: \w+ )};
@@ -288,7 +290,7 @@ sub _smart_split {
 
    my @path;
    push @path, $1  ## no critic (ProhibitCaptureWithoutTest)
-      while $input =~ m{\G \.? ($chunk) }cgmxs;
+      while $input =~ m{\G [.]? ($chunk) }cgmxs;
 
    # save and restore pos() on $input
    my $postpos = pos($input);
@@ -323,8 +325,8 @@ sub _smart_split {
 
 sub _variable {
    my $path = shift;
-   my $DQ = '"';
-   $path = join ', ', map { $DQ . quotemeta($_) . $DQ } @$path;
+   my $DQ = q<">;
+   $path = join ', ', map { $DQ . quotemeta($_) . $DQ } @{$path};
 
    return <<"END_OF_CHUNK";
 ### Variable from \%variables stash
