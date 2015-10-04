@@ -1,6 +1,6 @@
 package Template::Perlish;
 
-$VERSION = '1.40';
+$VERSION = '1.40'; ## no critic (RequireUseStrict,RequireUseWarnings)
 
 use 5.008_000;
 use warnings;
@@ -9,7 +9,7 @@ use Carp;
 use English qw( -no_match_vars );
 
 # Function-oriented interface
-sub import {
+sub import { ## no critic (RequireArgUnpacking)
    my $package = shift;
 
    for my $sub (@_) {
@@ -18,7 +18,7 @@ sub import {
 
       my $caller = caller();
 
-      no strict 'refs';
+      no strict 'refs'; ## no critic (ProhibitNoStrict)
       local $SIG{__WARN__} = \&Carp::carp;
       *{$caller . '::' . $sub} = \&{$package . '::' . $sub};
    }
@@ -26,7 +26,7 @@ sub import {
    return;
 }
 
-sub render {
+sub render { ## no critic (RequireArgUnpacking)
    my $template = shift;
    my (%variables, %params);
    if (@_) {
@@ -37,7 +37,7 @@ sub render {
 }
 
 # Object-oriented interface
-sub new {
+sub new { ## no critic (RequireArgUnpacking)
    my $self = bless {
       start     => '[%',
       stop      => '%]',
@@ -61,21 +61,20 @@ sub evaluate {
    return $compiled->{sub}->($vars);
 } ## end sub evaluate
 
-sub compile {
+sub compile { ## no critic (RequireArgUnpacking)
    my ($self, undef, %args) = @_;
    my $outcome = $self->_compile_code_text($_[1]);
    return $outcome if $args{no_check};
    return $self->_compile_sub($outcome);
 }
 
-sub compile_as_sub {
+sub compile_as_sub { ## no critic (RequireArgUnpacking)
    my $self = shift;
    return $self->compile($_[0])->{'sub'};
 } ## end sub compile_as_sub
 
 sub _compile_code_text {
-   my $self = shift;
-   my ($template) = @_;
+   my ($self, $template) = @_;
 
    my $starter = $self->{start};
    my $stopper = $self->{stop};
@@ -104,7 +103,7 @@ sub _compile_code_text {
       my $stop = index $template, $stopper, $pos;
       if ($stop < 0) { # no matching $stopper, bummer!
          my $section = _extract_section({ template => $template }, $line_no);
-         die "unclosed starter '$starter' at line $line_no\n$section";
+         croak "unclosed starter '$starter' at line $line_no\n$section";
       }
       my $code = substr $template, $pos, $stop - $pos;
 
@@ -142,7 +141,7 @@ sub _compile_code_text {
    };
 }
 
-sub _V {
+sub _V { ## no critic (ProhibitUnusedPrivateSubroutines,RequireArgUnpacking)
    my $value = shift;
    for my $chunk (@_) {
       if (ref($value) eq 'HASH') {
@@ -171,7 +170,7 @@ sub _compile_sub {
    {
       my $utf8 = $self->{utf8} ? 1 : 0;
       local $SIG{__WARN__} = sub { push @warnings, @_ };
-      $outcome->{sub} = eval <<"END_OF_CODE";
+      $outcome->{sub} = eval <<"END_OF_CODE"; ## no critic (ProhibitStringyEval)
    sub {
       my \%variables = (\%{\$self->{variables}}, \%{shift || {}});
 
@@ -231,7 +230,7 @@ END_OF_CODE
    my $section = _extract_section($outcome, $line_no);
    $error = join '', @warnings, $error, "\n", $section;
 
-   die $error;
+   croak $error;
 } ## end sub compile
 
 sub _extract_section {
@@ -240,7 +239,7 @@ sub _extract_section {
    my $start = $line_no - 3;
    my $end = $line_no + 3;
 
-   my @lines = split /\n/, $hash->{template};
+   my @lines = split /\n/x, $hash->{template};
    $start = 0 if $start < 0;
    $end = $#lines if $end > $#lines;
    my $n_chars = length($end + 1);
@@ -255,9 +254,9 @@ sub _extract_section {
 sub _simple_text {
    my $text = shift;
 
-   return "print {*STDOUT} '$text';\n\n" if $text !~ /[\n'\\]/;
+   return "print {*STDOUT} '$text';\n\n" if $text !~ /[\n'\\]/x;
 
-   $text =~ s/^/ /gms; # indent, trick taken from diff -u
+   $text =~ s/^/ /gmxs; # indent, trick taken from diff -u
    return <<"END_OF_CHUNK";
 ### Verbatim text
 print {*STDOUT} do {
@@ -276,17 +275,20 @@ sub _smart_split {
    my ($input) = @_;
    $input =~ s{\A\s+|\s+\z}{}gmxs;
 
+   ## no critic (RequireExtendedFormatting)
    my $sq = qr{(?mxs: ' [^']* ' )};
    my $dq = qr{(?mxs: " (?:[^\\"] | \\.)* " )};
    my $ud = qr{(?mxs: \w+ )};
    my $chunk = qr{(?mxs: $sq | $dq | $ud)+};
+   ## use critic
 
    # save and reset current pos() on $input
    my $prepos = pos($input);
    pos($input) = undef;
 
    my @path;
-   push @path, $1 while $input =~ m{\G \.? ($chunk) }cgmxs;
+   push @path, $1  ## no critic (ProhibitCaptureWithoutTest)
+      while $input =~ m{\G \.? ($chunk) }cgmxs;
 
    # save and restore pos() on $input
    my $postpos = pos($input);
