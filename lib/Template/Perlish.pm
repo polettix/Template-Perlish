@@ -9,24 +9,24 @@ use constant ERROR_CONTEXT => 3;
 { our $VERSION = '1.40'; }
 
 # Function-oriented interface
-sub import { ## no critic (RequireArgUnpacking)
+sub import {    ## no critic (RequireArgUnpacking)
    my $package = shift;
 
    for my $sub (@_) {
       croak "subroutine '$sub' not exportable"
-         unless grep { $sub eq $_ } qw( render );
+        unless grep { $sub eq $_ } qw( render );
 
       my $caller = caller();
 
-      no strict 'refs'; ## no critic (ProhibitNoStrict)
+      no strict 'refs';    ## no critic (ProhibitNoStrict)
       local $SIG{__WARN__} = \&Carp::carp;
       *{$caller . q<::> . $sub} = \&{$package . q<::> . $sub};
-   }
+   } ## end for my $sub (@_)
 
    return;
-}
+} ## end sub import
 
-sub render { ## no critic (RequireArgUnpacking)
+sub render {               ## no critic (RequireArgUnpacking)
    my $template = shift;
    my (%variables, %params);
    if (@_) {
@@ -34,10 +34,10 @@ sub render { ## no critic (RequireArgUnpacking)
       %params = %{shift @_} if @_;
    }
    return __PACKAGE__->new(%params)->process($template, \%variables);
-}
+} ## end sub render
 
 # Object-oriented interface
-sub new { ## no critic (RequireArgUnpacking)
+sub new {                  ## no critic (RequireArgUnpacking)
    my $self = bless {
       start     => '[%',
       stop      => '%]',
@@ -57,21 +57,21 @@ sub process {
 sub evaluate {
    my ($self, $compiled, $vars) = @_;
    $self->_compile_sub($compiled)
-      unless exists $compiled->{sub};
+     unless exists $compiled->{sub};
    return $compiled->{sub}->($vars);
 } ## end sub evaluate
 
-sub compile { ## no critic (RequireArgUnpacking)
+sub compile {    ## no critic (RequireArgUnpacking)
    my ($self, undef, %args) = @_;
    my $outcome = $self->_compile_code_text($_[1]);
    return $outcome if $args{no_check};
    return $self->_compile_sub($outcome);
-}
+} ## end sub compile
 
-sub compile_as_sub { ## no critic (RequireArgUnpacking)
+sub compile_as_sub {    ## no critic (RequireArgUnpacking)
    my $self = shift;
    return $self->compile($_[0])->{'sub'};
-} ## end sub compile_as_sub
+}
 
 sub _compile_code_text {
    my ($self, $template) = @_;
@@ -82,8 +82,8 @@ sub _compile_code_text {
    my $compiled = "# line 1 'input'\n";
    $compiled .= "use utf8;\n\n" if $self->{utf8};
    $compiled .= "print {*STDOUT} '';\n\n";
-   my $pos      = 0;
-   my $line_no  = 1;
+   my $pos     = 0;
+   my $line_no = 1;
    while ($pos < length $template) {
 
       # Find starter and emit all previous text as simple text
@@ -101,8 +101,8 @@ sub _compile_code_text {
 
       # Grab code
       my $stop = index $template, $stopper, $pos;
-      if ($stop < 0) { # no matching $stopper, bummer!
-         my $section = _extract_section({ template => $template }, $line_no);
+      if ($stop < 0) {    # no matching $stopper, bummer!
+         my $section = _extract_section({template => $template}, $line_no);
          croak "unclosed starter '$starter' at line $line_no\n$section";
       }
       my $code = substr $template, $pos, $stop - $pos;
@@ -114,17 +114,21 @@ sub _compile_code_text {
          if (my $path = _smart_split($code)) {
             $compiled .= _variable($path);
          }
-         elsif (my ($scalar) = $code =~ m{\A\s* (\$ [[:alpha:]_]\w*) \s*\z}mxs) {
-            $compiled .= "\nprint {*STDOUT} $scalar; ### straight scalar\n\n";
-         }
+         elsif (my ($scalar) =
+            $code =~ m{\A\s* (\$ [[:alpha:]_]\w*) \s*\z}mxs)
+         {
+            $compiled .=
+              "\nprint {*STDOUT} $scalar; ### straight scalar\n\n";
+         } ## end elsif (my ($scalar) = $code...)
          elsif (substr($code, 0, 1) eq q<=>) {
-            $compiled .= "\n# line $line_no 'template<3,$line_no>'\n" .
-               _expression(substr $code, 1);
+            $compiled .= "\n# line $line_no 'template<3,$line_no>'\n"
+              . _expression(substr $code, 1);
          }
          else {
-            $compiled .= "\n# line $line_no 'template<0,$line_no>'\n" . $code;
+            $compiled .=
+              "\n# line $line_no 'template<0,$line_no>'\n" . $code;
          }
-      }
+      } ## end if (length $code)
 
       # Update scanning variables
       $pos = $stop + length $stopper;
@@ -139,9 +143,10 @@ sub _compile_code_text {
       template  => $template,
       code_text => $compiled,
    };
-}
+} ## end sub _compile_code_text
 
-sub _V { ## no critic (ProhibitUnusedPrivateSubroutines,RequireArgUnpacking)
+sub _V
+{    ## no critic (ProhibitUnusedPrivateSubroutines,RequireArgUnpacking)
    my $value = shift;
    for my $chunk (@_) {
       if (ref($value) eq 'HASH') {
@@ -153,13 +158,13 @@ sub _V { ## no critic (ProhibitUnusedPrivateSubroutines,RequireArgUnpacking)
       else {
          return '';
       }
-   }
+   } ## end for my $chunk (@_)
    return defined($value) ? $value : '';
-}
+} ## end sub _V
 
-sub V { return '' }
-sub A { return }
-sub H { return }
+sub V  { return '' }
+sub A  { return }
+sub H  { return }
 sub HK { return }
 sub HV { return }
 
@@ -170,7 +175,8 @@ sub _compile_sub {
    {
       my $utf8 = $self->{utf8} ? 1 : 0;
       local $SIG{__WARN__} = sub { push @warnings, @_ };
-      $outcome->{sub} = eval <<"END_OF_CODE"; ## no critic (ProhibitStringyEval)
+      $outcome->{sub} =
+        eval <<"END_OF_CODE";    ## no critic (ProhibitStringyEval)
    sub {
       my \%variables = (\%{\$self->{variables}}, \%{shift || {}});
 
@@ -219,13 +225,12 @@ END_OF_CODE
    ## no critic (RegularExpressions::ProhibitEscapedMetacharacters)
    my $error = $EVAL_ERROR;
    my ($offset, $starter, $line_no) =
-      $error =~ m{at\ 'template<(\d+),(\d+)>'\ line\ (\d+)}mxs;
+     $error =~ m{at\ 'template<(\d+),(\d+)>'\ line\ (\d+)}mxs;
    $line_no -= $offset;
-   s{at\ 'template<\d+,\d+>'\ line\ (\d+)}{'at line ' . ($1 - $offset)}egmxs
-      for @warnings, $error;
+s{at\ 'template<\d+,\d+>'\ line\ (\d+)}{'at line ' . ($1 - $offset)}egmxs
+     for @warnings, $error;
    if ($line_no == $starter) {
-      s{,\ near\ "\#\ line.*?\n\s+}{, near "}gmxs
-         for @warnings, $error;
+      s{,\ near\ "\#\ line.*?\n\s+}{, near "}gmxs for @warnings, $error;
    }
    ## use critic
 
@@ -233,32 +238,30 @@ END_OF_CODE
    $error = join '', @warnings, $error, "\n", $section;
 
    croak $error;
-} ## end sub compile
+} ## end sub _compile_sub
 
 sub _extract_section {
    my ($hash, $line_no) = @_;
-   $line_no--; # for proper comparison with 0-based array
+   $line_no--;    # for proper comparison with 0-based array
    my $start = $line_no - ERROR_CONTEXT;
-   my $end = $line_no + ERROR_CONTEXT;
+   my $end   = $line_no + ERROR_CONTEXT;
 
    my @lines = split /\n/mxs, $hash->{template};
-   $start = 0 if $start < 0;
-   $end = $#lines if $end > $#lines;
+   $start = 0       if $start < 0;
+   $end   = $#lines if $end > $#lines;
    my $n_chars = length($end + 1);
    return join '', map {
       sprintf "%s%${n_chars}d| %s\n",
-         (($_ == $line_no) ? '>>' : '  '),
-         ($_ + 1),
-         $lines[$_];
+        (($_ == $line_no) ? '>>' : '  '), ($_ + 1), $lines[$_];
    } $start .. $end;
-}
+} ## end sub _extract_section
 
 sub _simple_text {
    my $text = shift;
 
    return "print {*STDOUT} '$text';\n\n" if $text !~ /[\n'\\]/mxs;
 
-   $text =~ s/^/ /gmxs; # indent, trick taken from diff -u
+   $text =~ s/^/ /gmxs;    # indent, trick taken from diff -u
    return <<"END_OF_CHUNK";
 ### Verbatim text
 print {*STDOUT} do {
@@ -278,9 +281,9 @@ sub _smart_split {
    $input =~ s{\A\s+|\s+\z}{}gmxs;
 
    ## no critic (RequireExtendedFormatting,RegularExpressions::RequireLineBoundaryMatching,RegularExpressions::RequireDotMatchAnything)
-   my $sq = qr{(?mxs: ' [^']* ' )};
-   my $dq = qr{(?mxs: " (?:[^\\"] | \\.)* " )};
-   my $ud = qr{(?mxs: \w+ )};
+   my $sq    = qr{(?mxs: ' [^']* ' )};
+   my $dq    = qr{(?mxs: " (?:[^\\"] | \\.)* " )};
+   my $ud    = qr{(?mxs: \w+ )};
    my $chunk = qr{(?mxs: $sq | $dq | $ud)+};
    ## use critic
 
@@ -289,8 +292,8 @@ sub _smart_split {
    pos($input) = undef;
 
    my @path;
-   push @path, $1  ## no critic (ProhibitCaptureWithoutTest)
-      while $input =~ m{\G [.]? ($chunk) }cgmxs;
+   push @path, $1    ## no critic (ProhibitCaptureWithoutTest)
+     while $input =~ m{\G [.]? ($chunk) }cgmxs;
 
    # save and restore pos() on $input
    my $postpos = pos($input);
@@ -314,18 +317,18 @@ sub _smart_split {
          elsif ($part =~ m{\G ($ud) }cgmxs) {
             push @subparts, $1;
          }
-         else { # shouldn't happen ever
+         else {    # shouldn't happen ever
             return;
          }
-      }
+      } ## end while ((pos($part) || 0) ...)
       $part = join '', @subparts;
-   }
+   } ## end for my $part (@path)
    return \@path;
-}
+} ## end sub _smart_split
 
 sub _variable {
    my $path = shift;
-   my $DQ = q<">;
+   my $DQ   = q<">;
    $path = join ', ', map { $DQ . quotemeta($_) . $DQ } @{$path};
 
    return <<"END_OF_CHUNK";
@@ -348,6 +351,6 @@ $expression
 
 END_OF_CHUNK
 
-}
+} ## end sub _expression
 
 1;
