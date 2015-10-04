@@ -86,7 +86,7 @@ As a summary:
 - PRO
     - lightweight, a single-file module with minimal requirements that you
     can easily embed in your script;
-    - simple approach to variable substitution, following 
+    - simple approach to variable substitution, following
     [Template::Toolkit](https://metacpan.org/pod/Template::Toolkit)
     to cope with scalars, hashes and arrays;
 - PRO/CON
@@ -103,9 +103,9 @@ As a summary:
 
 If you think that this module does not fit your requirements,
 my personal suggestion for a templating system is
-[Template::Toolkit](https://metacpan.org/pod/Template::Toolkit): 
-it's complete, easy to use and extensible, has excellent documentation 
-(including a book and a quick reference guide) and support. Do you need 
+[Template::Toolkit](https://metacpan.org/pod/Template::Toolkit):
+it's complete, easy to use and extensible, has excellent documentation
+(including a book and a quick reference guide) and support. Do you need
 anything more?
 
 But don't trust me! Take a look at _Choosing a Templating System_ at
@@ -295,7 +295,7 @@ template:
 
     Much like ["compile"](#compile), this method does exactly the same compilation,
     but returns a reference to an anonymous subroutine that can be used
-    each time you want to "explode" the template. 
+    each time you want to "explode" the template.
 
     The anonymous sub that is returned accepts a single, optional parameter,
     namely a reference to a hash of variables to be used in addition to the
@@ -334,10 +334,10 @@ defaults). If you have to print stuff, just print to STDOUT, it will
 be automatically catpured (unless you're calling the generated
 code by yourself).
 
-Anything inside these "special" parts matching the regular 
+Anything inside these "special" parts matching the regular
 expression /^\\s\*\\w+(?:\\.\\w+)\*\\s\*$/, i.e. consisting only of a sequence
 of alphanumeric tokens separated by dots, are considered to be variables
-and processed accordingly. Thus, available variables can be accessed 
+and processed accordingly. Thus, available variables can be accessed
 in two ways: using the dotted notation, as in
 
     [% some.value.3.lastkey %]
@@ -399,7 +399,7 @@ shortcut to evaluate it and print all in one single command:
 
     [%= my $value = 100; "*** $variable -> $value ***" %]
 
-Note that there is an equal sign (`"`) immediately after the command
+Note that there is an equal sign (`=`) immediately after the command
 opener `[%`. The Perl expression is evaluated in scalar context, and
 the result is printed (if defined, otherwise it's skipped). This sort
 of makes the previous short form for simple scalars a bit outdated,
