@@ -1,6 +1,6 @@
 Changes for Template::Perlish:
    - fixed typo in documentation
-   - fixing according to Perl::Critic
+   - perlcritic --brutal now passes (with a few selected exclusions)
 
 {{$NEXT}}
 
