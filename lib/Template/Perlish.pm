@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use English qw( -no_match_vars );
 use constant ERROR_CONTEXT => 3;
-{ our $VERSION = '1.41'; }
+{ our $VERSION = '1.40_01'; }
 
 # Function-oriented interface
 sub import {
@@ -28,12 +28,12 @@ sub import {
 
 sub render {
    my ($template, @rest) = @_;
-   my (%variables, %params);
+   my ($variables, %params);
    if (@rest) {
-      %variables = ref($rest[0]) ? %{shift @rest} : splice @rest, 0;
+      $variables = ref($rest[0]) ? shift(@rest) : { splice @rest, 0 };
       %params = %{shift @rest} if @rest;
    }
-   return __PACKAGE__->new(%params)->process($template, \%variables);
+   return __PACKAGE__->new(%params)->process($template, $variables);
 } ## end sub render
 
 # Object-oriented interface
@@ -146,20 +146,31 @@ sub _compile_code_text {
    };
 } ## end sub _compile_code_text
 
-sub _V
-{    ## no critic (ProhibitUnusedPrivateSubroutines,RequireArgUnpacking)
+sub _V {    ## no critic (ProhibitUnusedPrivateSubroutines)
    my $value = shift;
-   for my $chunk (@_) {
+   return $value unless @_;
+
+   my $pathref = shift;
+   if (! ref $pathref) {
+      return $value if defined($pathref) && ! length($pathref);
+      $pathref = _smart_split($pathref);
+   }
+   return '' unless defined $pathref;
+
+   # go down the rabbit hole
+   for my $segment (@$pathref) {
       if (ref($value) eq 'HASH') {
-         $value = $value->{$chunk};
+         $value = $value->{$segment};
       }
       elsif (ref($value) eq 'ARRAY') {
-         $value = $value->[$chunk];
+         $value = $value->[$segment];
       }
-      else {
+      else { # nothing to go down further... simply not found
          return '';
       }
-   } ## end for my $chunk (@_)
+   } ## end for my $segment (@$pathref)
+
+   # normalize output, substitute undef with ''
    return defined($value) ? $value : '';
 } ## end sub _V
 
@@ -176,50 +187,50 @@ sub _compile_sub {
    {
       my $utf8 = $self->{utf8} ? 1 : 0;
       local $SIG{__WARN__} = sub { push @warnings, @_ };
-      $outcome->{sub} =
-        eval <<"END_OF_CODE";    ## no critic (ProhibitStringyEval)
+      my $code = <<"END_OF_CODE";
    sub {
-      my \%variables = (\%{\$self->{variables}}, \%{shift || {}});
+      my \%variables = \%{\$self->{variables}};
+      my \$V = \\\%variables; # generic kid, as before by default
+
+      {
+         my \$vars = shift || {};
+         if (ref(\$vars) eq 'HASH') { # old case
+            \%variables = (\%variables, \%\$vars);
+         }
+         else {
+            \$V = \$vars; # keep \%variables around anyway
+         }
+      }
 
       no warnings 'redefine';
-      local *V = sub {
-         my \$path = _smart_split(shift) or return '';
-         return _V(\\\%variables, \@\$path);
-      };
-      local *A = sub {
-         my \$v = V(shift) or return;
-         return \@\$v;
-      };
-      local *H = sub {
-         my \$v = V(shift) or return;
-         return \%\$v;
-      };
-      local *HK = sub {
-         my \$v = V(shift) or return;
-         return keys \%\$v;
-      };
-      local *HV = sub {
-         my \$v = V(shift) or return;
-         return values \%\$v;
-      };
+      local *V  = sub { return           _V(\$V, \@_)       ; };
+      local *A  = sub { return        \@{_V(\$V, \@_) || []}; };
+      local *H  = sub { return        \%{_V(\$V, \@_) || {}}; };
+      local *HK = sub { return keys   \%{_V(\$V, \@_) || {}}; };
+      local *HV = sub { return values \%{_V(\$V, \@_) || {}}; };
       use warnings 'redefine';
 
       local *STDOUT;
-      open STDOUT, '>', \\my \$___buffer or croak "open(): \$OS_ERROR";
+      open STDOUT, '>', \\my \$buffer or croak "open(): \$OS_ERROR";
       binmode STDOUT, ':encoding(utf8)' if $utf8;
-      my \$___previous_selection = select(STDOUT);
-      { # closure to free "my" variables
+      my \$previous_selection = select(STDOUT);
+      { # double closure to free "my" variables
+         my (\$buffer, \$previous_selection); # hide external ones
+         { # this enclusure allows using "my" again
 $outcome->{code_text}
+         }
       }
-      select(\$___previous_selection);
+      select(\$previous_selection);
       close STDOUT;
       if ($utf8) {
          require Encode;
-         \$___buffer = Encode::decode(utf8 => \$___buffer);
+         \$buffer = Encode::decode(utf8 => \$buffer);
       }
-      return \$___buffer;
+      return \$buffer;
    }
 END_OF_CODE
+      # print {*STDOUT} $code; exit 0;
+      $outcome->{sub} = eval $code;  ## no critic (ProhibitStringyEval)
       return $outcome if $outcome->{sub};
    }
 
@@ -227,7 +238,8 @@ END_OF_CODE
    my ($offset, $starter, $line_no) =
      $error =~ m{at[ ]'template<(\d+),(\d+)>'[ ]line[ ](\d+)}mxs;
    $line_no -= $offset;
-s{at[ ]'template<\d+,\d+>'[ ]line[ ](\d+)}{'at line ' . ($1 - $offset)}egmxs
+   s{at[ ]'template<\d+,\d+>'[ ]line[ ](\d+)}
+    {'at line ' . ($1 - $offset)}egmxs
      for @warnings, $error;
    if ($line_no == $starter) {
       s{,[ ]near[ ]"[#][ ]line.*?\n\s+}{, near "}gmxs
@@ -278,6 +290,8 @@ END_OF_CHUNK
 
 sub _smart_split {
    my ($input) = @_;
+   return unless defined $input;
+
    $input =~ s{\A\s+|\s+\z}{}gmxs;
 
    my $sq    = qr{(?mxs: ' [^']* ' )}mxs;
@@ -327,12 +341,12 @@ sub _smart_split {
 
 sub _variable {
    my $path = shift;
-   my $DQ   = q<">;
+   my $DQ   = q<">; # double quotes
    $path = join ', ', map { $DQ . quotemeta($_) . $DQ } @{$path};
 
    return <<"END_OF_CHUNK";
-### Variable from \%variables stash
-print {*STDOUT} _V(\\\%variables, $path);
+### Variable from the stash (\$V)
+print {*STDOUT} V([$path]);
 
 END_OF_CHUNK
 } ## end sub _variable

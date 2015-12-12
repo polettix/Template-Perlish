@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 3; # last test to print
+use Test::More tests => 4; # last test to print
 
 BEGIN {
    use_ok('Template::Perlish');
@@ -13,24 +13,22 @@ ok($tt, 'object created');
 
 {
    my $template = <<'END_OF_TEMPLATE';
-Dear [% name %],
+Dear Customer,
 
    we are pleased to present you the following items:
-[%
-   my $items = $variables{items};
-   for my $item (@$items) {%]
-   * [% print $item;
+[% for my $item (A) { %]
+   * [%= $item %][%
    }
 %]
 
-Please consult our complete catalog at [% uris.2.catalog %].
+Please consult our complete catalog.
 
 Yours,
 
-   [% director.name %] [% director.surname %].
+   The Director.
 END_OF_TEMPLATE
    my $result = <<END_OF_TEMPLATE;
-Dear Ciccio Riccio,
+Dear Customer,
 
    we are pleased to present you the following items:
 
@@ -39,23 +37,26 @@ Dear Ciccio Riccio,
    * tutti
    * quanti
 
-Please consult our complete catalog at http://whateeeeever/.
+Please consult our complete catalog.
 
 Yours,
 
-    Poletti.
+   The Director.
 END_OF_TEMPLATE
-   my $processed = $tt->process($template, {
-      name => 'Ciccio Riccio',
-      items => [ qw( ciao a tutti quanti ) ],
-      uris => [
-         'http://whatever/',
-         undef,
-         {
-            catalog => 'http://whateeeeever/',
-         }
-      ],
-      director => { surname => 'Poletti' },
-   });
+   my $processed = $tt->process($template,
+      [ qw( ciao a tutti quanti ) ]);
    is($processed, $result, 'simple template with a block');
+}
+
+{
+   my $got = Template::Perlish::render('[% 1.what.ever %]',
+      [
+         'foo',
+         {
+            what => { ever => 'bar', baz => 0 }
+         },
+         'anything goes',
+      ]);
+   my $expected = 'bar';
+   is $got, $expected, 'another test with array input';
 }
