@@ -9,10 +9,10 @@ use constant ERROR_CONTEXT => 3;
 { our $VERSION = '1.41'; }
 
 # Function-oriented interface
-sub import {    ## no critic (RequireArgUnpacking)
-   my $package = shift;
+sub import {
+   my ($package, @list) = @_;
 
-   for my $sub (@_) {
+   for my $sub (@list) {
       croak "subroutine '$sub' not exportable"
         unless grep { $sub eq $_ } qw( render );
 
@@ -21,31 +21,32 @@ sub import {    ## no critic (RequireArgUnpacking)
       no strict 'refs';    ## no critic (ProhibitNoStrict)
       local $SIG{__WARN__} = \&Carp::carp;
       *{$caller . q<::> . $sub} = \&{$package . q<::> . $sub};
-   } ## end for my $sub (@_)
+   } ## end for my $sub (@list)
 
    return;
 } ## end sub import
 
-sub render {               ## no critic (RequireArgUnpacking)
-   my $template = shift;
+sub render {
+   my ($template, @rest) = @_;
    my (%variables, %params);
-   if (@_) {
-      %variables = ref($_[0]) ? %{shift @_} : splice @_, 0;
-      %params = %{shift @_} if @_;
+   if (@rest) {
+      %variables = ref($rest[0]) ? %{shift @rest} : splice @rest, 0;
+      %params = %{shift @rest} if @rest;
    }
    return __PACKAGE__->new(%params)->process($template, \%variables);
 } ## end sub render
 
 # Object-oriented interface
-sub new {                  ## no critic (RequireArgUnpacking)
+sub new {
+   my ($package, @rest) = @_;
    my $self = bless {
       start     => '[%',
       stop      => '%]',
       utf8      => 1,
       variables => {},
      },
-     shift;
-   %{$self} = (%{$self}, @_ == 1 ? %{$_[0]} : @_);
+     $package;
+   %{$self} = (%{$self}, @rest == 1 ? %{$rest[0]} : @rest);
    return $self;
 } ## end sub new
 
@@ -222,17 +223,16 @@ END_OF_CODE
       return $outcome if $outcome->{sub};
    }
 
-   ## no critic (RegularExpressions::ProhibitEscapedMetacharacters)
    my $error = $EVAL_ERROR;
    my ($offset, $starter, $line_no) =
-     $error =~ m{at\ 'template<(\d+),(\d+)>'\ line\ (\d+)}mxs;
+     $error =~ m{at[ ]'template<(\d+),(\d+)>'[ ]line[ ](\d+)}mxs;
    $line_no -= $offset;
-s{at\ 'template<\d+,\d+>'\ line\ (\d+)}{'at line ' . ($1 - $offset)}egmxs
+s{at[ ]'template<\d+,\d+>'[ ]line[ ](\d+)}{'at line ' . ($1 - $offset)}egmxs
      for @warnings, $error;
    if ($line_no == $starter) {
-      s{,\ near\ "\#\ line.*?\n\s+}{, near "}gmxs for @warnings, $error;
+      s{,[ ]near[ ]"[#][ ]line.*?\n\s+}{, near "}gmxs
+        for @warnings, $error;
    }
-   ## use critic
 
    my $section = _extract_section($outcome, $line_no);
    $error = join '', @warnings, $error, "\n", $section;
@@ -280,20 +280,19 @@ sub _smart_split {
    my ($input) = @_;
    $input =~ s{\A\s+|\s+\z}{}gmxs;
 
-   ## no critic (RequireExtendedFormatting,RegularExpressions::RequireLineBoundaryMatching,RegularExpressions::RequireDotMatchAnything)
-   my $sq    = qr{(?mxs: ' [^']* ' )};
-   my $dq    = qr{(?mxs: " (?:[^\\"] | \\.)* " )};
-   my $ud    = qr{(?mxs: \w+ )};
-   my $chunk = qr{(?mxs: $sq | $dq | $ud)+};
-   ## use critic
+   my $sq    = qr{(?mxs: ' [^']* ' )}mxs;
+   my $dq    = qr{(?mxs: " (?:[^\\"] | \\.)* " )}mxs;
+   my $ud    = qr{(?mxs: \w+ )}mxs;
+   my $chunk = qr{(?mxs: $sq | $dq | $ud)+}mxs;
 
    # save and reset current pos() on $input
    my $prepos = pos($input);
    pos($input) = undef;
 
    my @path;
-   push @path, $1    ## no critic (ProhibitCaptureWithoutTest)
-     while $input =~ m{\G [.]? ($chunk) }cgmxs;
+   ## no critic (RegularExpressions::ProhibitCaptureWithoutTest)
+   push @path, $1 while $input =~ m{\G [.]? ($chunk) }cgmxs;
+   ## use critic
 
    # save and restore pos() on $input
    my $postpos = pos($input);

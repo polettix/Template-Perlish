@@ -36,7 +36,7 @@ This document describes Template::Perlish version 1.41.
 
     my $processed = $tt->process($template, {
        name => 'Ciccio Riccio',
-       items => [ qw( ciao a tutti quanti ) ],
+       items => [ qw< ciao a tutti quanti > ],
        uris => [
           'http://whatever/',
           undef,
@@ -66,7 +66,7 @@ The above prints:
 
 There is also a convenience function for one-shot templates:
 
-    use Template::Perlish qw( render );
+    use Template::Perlish qw< render >;
     my $rendered = render($template, \%variables);
 
 # SHOULD YOU USE THIS?
@@ -75,24 +75,23 @@ You're probably looking at the tons and tons of templating systems
 available around - should you use this?
 
 This system is quite basic and useful for simple situations. Say you
-have a bunch of templates in which you want to put some variables -
-then it's ok. On top of this, say that you want to add some simple
-logic - like a couple of IF's or iterating over an array - then
-it's ok again. For everything more complicated you should probably
-look elsewhere.
+have a bunch of templates in which you want to put some variables - then
+it's ok. On top of this, say that you want to add some simple logic -
+like a couple of IF's or iterating over an array - then it's ok again.
+For everything more complicated you should probably look elsewhere.
 
 As a summary:
 
 - PRO
-    - lightweight, a single-file module with minimal requirements that you
-    can easily embed in your script;
+    - lightweight, a single-file module with minimal requirements that you can
+    easily embed in your script;
     - simple approach to variable substitution, following
-    [Template::Toolkit](https://metacpan.org/pod/Template::Toolkit)
-    to cope with scalars, hashes and arrays;
+    [Template::Toolkit](https://metacpan.org/pod/Template::Toolkit) to cope with scalars, hashes and
+    arrays;
 - PRO/CON
-    - Perl code to handle all logic. This can be regarded as a PRO if you're
-    a Perl programmer, because you already know the syntax; this is
-    probably (definitively?) a CON in all other cases;
+    - Perl code to handle all logic. This can be regarded as a PRO if you're a
+    Perl programmer, because you already know the syntax; this is probably
+    (definitively?) a CON in all other cases;
 - CON
     - you have to explicitly code everything that goes beyond simple variable
     stuffing into a template.
@@ -101,12 +100,11 @@ As a summary:
     you trust your templates. Don't trust them if you don't write them
     yourself, and even in that case be suspicious.
 
-If you think that this module does not fit your requirements,
-my personal suggestion for a templating system is
-[Template::Toolkit](https://metacpan.org/pod/Template::Toolkit):
-it's complete, easy to use and extensible, has excellent documentation
-(including a book and a quick reference guide) and support. Do you need
-anything more?
+If you think that this module does not fit your requirements, my
+personal suggestion for a templating system is
+[Template::Toolkit](https://metacpan.org/pod/Template::Toolkit): it's complete, easy to use and
+extensible, has excellent documentation (including a book and a quick
+reference guide) and support. Do you need anything more?
 
 But don't trust me! Take a look at _Choosing a Templating System_ at
 [http://perl.apache.org/docs/tutorials/tmpl/comparison/comparison.html](http://perl.apache.org/docs/tutorials/tmpl/comparison/comparison.html),
@@ -115,8 +113,8 @@ templating systems in Perl, and decide by yourself!
 
 # DESCRIPTION
 
-You bet, this is another templating system for Perl. Yes, because
-it's the dream of every Perl programmer, me included. I needed something
+You bet, this is another templating system for Perl. Yes, because it's
+the dream of every Perl programmer, me included. I needed something
 that's easily portable, with no dependencies apart a recent Perl version
 (but with some tweaking this should be solved), much in the spirit of
 the ::Tiny modules.
@@ -138,12 +136,13 @@ _Commands_ can be of four different types:
 
 - **variable embedding**
 
-    that are expanded with the particular value for a given `variable`, where
-    `variable`s are passed as a hash reference. A variable can be defined
-    as a sequence of alphanumeric (actually `\w`) tokens, separated by dots.
-    The variables hash is visited considering each token as a subkey, in order
-    to let you visit complex data structures. You can also put arrays in, but
-    remember to use numbers ;)
+    that are expanded with the particular value for a given `variable`,
+    where `variable`s are passed as a hash reference. A variable can be
+    defined as a sequence of alphanumeric (actually `\w`) tokens, separated
+    by dots (or anything described in ["Templates"](#templates) as of version 1.40). The
+    variables hash is visited considering each token as a subkey, in order
+    to let you visit complex data structures. You can also put arrays in,
+    just use the index as a key in this case.
 
 - **scalar Perl variable**
 
@@ -152,8 +151,8 @@ _Commands_ can be of four different types:
 - **Perl expression**
 
     this MUST have a `=` equal sign immediately after the opener, and
-    contain a valid Perl expression. This expression is evaluated
-    in scalar context and the result is printed;
+    contain a valid Perl expression. This expression is evaluated in scalar
+    context and the result is printed;
 
 - **code**
 
@@ -183,9 +182,9 @@ probably head somewhere else. Or not.
     # print out the template filled with some variables
     print $tp->process($tmpl, { key => 'value' });
 
-Each template is transformed into Pure Perl code, then the code
-is evaluated in order to get the output. Thus, if you want to operate
-on the same template many times, a typical usage is:
+Each template is transformed into Pure Perl code, then the code is
+evaluated in order to get the output. Thus, if you want to operate on
+the same template many times, a typical usage is:
 
     # compile the template with something like:
     my $compiled = $tp->compile($template);
@@ -195,8 +194,8 @@ on the same template many times, a typical usage is:
        print "DATASET\n", $tp->evaluate($compiled, $dataset), "\n\n";
     }
 
-There is also a facility - namely `/compile_as_sub` - that returns an
-anonymous sub that encapsulates the `evaluate` call above:
+There is also a facility - namely ["compile\_as\_sub"](#compile_as_sub) - that returns an
+anonymous sub that encapsulates the ["evaluate"](#evaluate) call above:
 
     my $sub = $tp->compile_as_sub($template)
        or die "template did not compile: $EVAL_ERROR";
@@ -211,9 +210,9 @@ arises, the module will `die()` with a meaningful message about where
 the error is. This happens with all the provided facilities.
 
 Error checking is turned on automatically on all facilities. You can
-avoid doing it in the `/compile` method, although the check will kick
-in at the first usage of the compiled form. To avoid the check upon
-the compilation, pass the `no_check` option to ["compile"](#compile):
+avoid doing it in the ["compile"](#compile) method, although the check will kick
+in at the first usage of the compiled form. To avoid the check upon the
+compilation, pass the `no_check` option to ["compile"](#compile):
 
     my $compiled = $tp->compile($template, no_check => 1);
 
@@ -226,17 +225,17 @@ template:
 
 - **render**
 
-        use Template::Perlish qw( render );
+        use Template::Perlish qw< render >;
         my $rendered = render($template);             # OR
         my $rendered = render($template, %variables); # OR
         my $rendered = render($template, \%variables);
 
-    if you already have a template and the variables to fill it in, this
-    is probably the quickest thing to do.
+    if you already have a template and the variables to fill it in, this is
+    probably the quickest thing to do.
 
-    You can pass the template alone, or you can pass the variables as
-    well, either as a flat list (that will be converted back to a hash)
-    or as a single hash reference.
+    You can pass the template alone, or you can pass the variables as well,
+    either as a flat list (that will be converted back to a hash) or as a
+    single hash reference.
 
     Returns the rendered template, i.e. the same output as ["process"](#process).
 
@@ -265,8 +264,8 @@ template:
 
     Parameters can be given directly or via a hash reference.
 
-    By default, the delimiters are the same as TT2, i.e. `[%` and `%]`, and
-    the variables hash is empty.
+    By default, the delimiters are the same as TT2, i.e. `[%` and `%]`,
+    and the variables hash is empty.
 
     The return value is a reference to an anonymous hash, whose three
     elements are the ones described above. You can modify them at will.
@@ -282,9 +281,9 @@ template:
     is useful when the same template has to be used multiple times, so the
     compilation can be done one time only.
 
-    You can turn off checking using the c<no\_check> optional parameter and
-    passing a true value. The check will be performed upon the first
-    usage of the compiled form though.
+    You can turn off checking using the `no_check` optional parameter and
+    passing a true value. The check will be performed upon the first usage
+    of the compiled form though.
 
     Returns a hash containing, among the rest, a text version of the
     template transformed into Perl code.
@@ -294,8 +293,8 @@ template:
         $sub_reference = $tp->compile_as_sub($template);
 
     Much like ["compile"](#compile), this method does exactly the same compilation,
-    but returns a reference to an anonymous subroutine that can be used
-    each time you want to "explode" the template.
+    but returns a reference to an anonymous subroutine that can be used each
+    time you want to "explode" the template.
 
     The anonymous sub that is returned accepts a single, optional parameter,
     namely a reference to a hash of variables to be used in addition to the
@@ -314,8 +313,8 @@ template:
 
     evaluate a template (in its compiled form, see ["compile"](#compile)) with the
     available variables. In the former form, only the already configured
-    variables are used; in the latter, the given `$variables` (which is
-    a hash reference) are added, overriding any corresponding key.
+    variables are used; in the latter, the given `$variables` (which is a
+    hash reference) are added, overriding any corresponding key.
 
     Returns the processed text as a string.
 
@@ -328,17 +327,17 @@ template:
 
 ## Templates
 
-There's really very little to say: write your document/text/whatever, and
-embed special parts with the delimiters of your choice (or stick to the
-defaults). If you have to print stuff, just print to STDOUT, it will
-be automatically catpured (unless you're calling the generated
-code by yourself).
+There's really very little to say: write your document/text/whatever,
+and embed special parts with the delimiters of your choice (or stick to
+the defaults). If you have to print stuff, just print to `STDOUT`, it
+will be automatically catpured (unless you're calling the generated code
+by yourself).
 
-Anything inside these "special" parts matching the regular
-expression /^\\s\*\\w+(?:\\.\\w+)\*\\s\*$/, i.e. consisting only of a sequence
-of alphanumeric tokens separated by dots, are considered to be variables
-and processed accordingly. Thus, available variables can be accessed
-in two ways: using the dotted notation, as in
+Anything inside these "special" parts matching the regular expression
+`/^\s*\w+(?:\.\w+)*\s*$/`, i.e. consisting only of a sequence of
+alphanumeric tokens separated by dots, are considered to be variables
+and processed accordingly. Thus, available variables can be accessed in
+two ways: using the dotted notation, as in
 
     [% some.value.3.lastkey %]
 
@@ -401,13 +400,13 @@ shortcut to evaluate it and print all in one single command:
 
 Note that there is an equal sign (`=`) immediately after the command
 opener `[%`. The Perl expression is evaluated in scalar context, and
-the result is printed (if defined, otherwise it's skipped). This sort
-of makes the previous short form for simple scalars a bit outdated,
-but you spare a character in any case and it's just DWIM.
+the result is printed (if defined, otherwise it's skipped). This sort of
+makes the previous short form for simple scalars a bit outdated, but you
+spare a character in any case and it's just DWIM.
 
-If you know Perl, you should not have problems using the control structures.
-Just intersperse the code with the templates as you would normally do
-in any other templating system:
+If you know Perl, you should not have problems using the control
+structures.  Just intersperse the code with the templates as you would
+normally do in any other templating system:
 
     [%
        if ($variables{this}) {
@@ -422,8 +421,8 @@ in any other templating system:
        }
     %]
 
-Take care to always terminate your commands with a `;` each time
-you would do it in actual code.
+Take care to always terminate your commands with a `;` each time you
+would do it in actual code.
 
 As of version 1.40, there are also a few functions that will make your
 life easy if you want to access the variables, namely ["V"](#v) to access a
@@ -431,10 +430,10 @@ variable provided its dotted-path representation, ["A"](#a) for expanding
 the variable as an array, ["H"](#h) to expand it as a hash, and ["HK"](#hk) and
 ["HV"](#hv) to get the keys and values of a hash, respectively.
 
-There's no escaping mechanism, so if you want to include literal
-`[%` or `%]` you either have to change delimiters, or you have to
-resort to tricks. In particular, a stray closing inside a textual part
-won't be a problem, e.g.:
+There's no escaping mechanism, so if you want to include literal `[%`
+or `%]` you either have to change delimiters, or you have to resort to
+tricks. In particular, a stray closing inside a textual part won't be a
+problem, e.g.:
 
     [% print "variable"; %] %] [% print "another"; %]
 
@@ -442,8 +441,8 @@ prints:
 
     variable %] another
 
-The tricky part is including the closing in the Perl code, but there
-can be many tricks:
+The tricky part is including the closing in the Perl code, but there can
+be many tricks:
 
     [% print '>>>%'.']<<<' %]
 
@@ -538,20 +537,20 @@ find it anyway.
 
 - `open(): %s`
 
-    the only `perlfunc/open` is done to print stuff to a string.
-    If you get this error, you're probably using a version of Perl that's
-    too old.
+    the only `perlfunc/open` is done to print stuff to a string. If you get
+    this error, you're probably using a version of Perl that's too old.
 
 - `unclosed %s at position %d`
 
     a Perl block was opened but not closed.
 
-Other errors are generated as part of the Perl compilation, so they
-will reflect the particular compile-time error encountered at that time.
+Other errors are generated as part of the Perl compilation, so they will
+reflect the particular compile-time error encountered at that time.
 
 # CONFIGURATION AND ENVIRONMENT
 
-Template::Perlish requires no configuration files or environment variables.
+Template::Perlish requires no configuration files or environment
+variables.
 
 # DEPENDENCIES
 
@@ -568,10 +567,10 @@ No bugs have been reported.
 Please report any bugs or feature requests through http://rt.cpan.org/
 
 Due to the fact that Perl code is embedded directly into the template,
-you have to take into consideration all the possible security implications.
-In particular, you should avoid taking templates from outside, because
-in this case you'll be evaluating Perl code that you haven't checked.
-CAVEAT EMPTOR.
+you have to take into consideration all the possible security
+implications.  In particular, you should avoid taking templates from
+outside, because in this case you'll be evaluating Perl code that you
+haven't checked.  CAVEAT EMPTOR.
 
 # AUTHOR
 
@@ -581,11 +580,11 @@ Flavio Poletti <polettix@cpan.org>
 
 Copyright (c) 2008-2015 by Flavio Poletti `polettix@cpan.org`.
 
-This module is free software.  You can redistribute it and/or
-modify it under the terms of the Artistic License 2.0.
+This module is free software.  You can redistribute it and/or modify it
+under the terms of the Artistic License 2.0.
 
-This program is distributed in the hope that it will be useful,
-but without any warranty; without even the implied warranty of
+This program is distributed in the hope that it will be useful, but
+without any warranty; without even the implied warranty of
 merchantability or fitness for a particular purpose.
 
 # SEE ALSO
