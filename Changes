@@ -1,8 +1,6 @@
-Changes for Template::Perlish:
+{{$NEXT}}
    - fixed a few errors in documentation
    - perlcritic --brutal now passes (with a few selected exclusions)
-
-{{$NEXT}}
 
 1.40  2015-10-03 07:40:15 EDT
    - Milla's dist.ini fix
