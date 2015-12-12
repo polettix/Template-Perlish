@@ -1,4 +1,6 @@
 {{$NEXT}}
+
+1.41_01  2015-12-12 15:39:06 CET
    - fixed a few errors in documentation
    - perlcritic --brutal now passes (with a few selected exclusions)
 
