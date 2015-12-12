@@ -1,8 +1,6 @@
 Changes for Template::Perlish:
    - fixed a few errors in documentation
    - perlcritic --brutal now passes (with a few selected exclusions)
-   - added support for variables as array
-   - tests for shortcut functions
 
 {{$NEXT}}
 
