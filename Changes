@@ -1,5 +1,9 @@
 {{$NEXT}}
 
+1.41_02  2015-12-13 12:27:43 CET
+   - exporting crumble and traverse (with documentation)
+   - tests for path parsing and traversal
+
 1.41_01  2015-12-12 15:39:06 CET
    - fixed a few errors in documentation
    - perlcritic --brutal now passes (with a few selected exclusions)
