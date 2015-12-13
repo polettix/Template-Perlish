@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use English qw( -no_match_vars );
 use constant ERROR_CONTEXT => 3;
-{ our $VERSION = '1.41_02'; }
+{ our $VERSION = '1.41_03'; }
 
 # Function-oriented interface
 sub import {
@@ -30,7 +30,7 @@ sub render {
    my ($template, @rest) = @_;
    my ($variables, %params);
    if (@rest) {
-      $variables = ref($rest[0]) ? shift(@rest) : { splice @rest, 0 };
+      $variables = ref($rest[0]) ? shift(@rest) : {splice @rest, 0};
       %params = %{shift @rest} if @rest;
    }
    return __PACKAGE__->new(%params)->process($template, $variables);
@@ -146,9 +146,15 @@ sub _compile_code_text {
    };
 } ## end sub _compile_code_text
 
-sub _V {    ## no critic (ProhibitUnusedPrivateSubroutines)
-   my $ref_to_value = \shift;
-   my $ref_wanted = shift;
+# The following function is long and complex because it deals with many
+# different cases. It is kept as-is to avoid too many calls to other
+# subroutines; for this reason, it's reasonably commented.
+sub traverse {  ## no critic (RequireArgUnpacking,ProhibitExcessComplexity)
+
+   ## no critic (ProhibitDoubleSigils)
+   my $iref         = ref($_[0]);
+   my $ref_wanted   = ($iref eq 'SCALAR') || ($iref eq 'REF');
+   my $ref_to_value = $ref_wanted ? shift : \shift;
    return ($ref_wanted ? $ref_to_value : $$ref_to_value) unless @_;
 
    my $path_input = shift;
@@ -160,7 +166,7 @@ sub _V {    ## no critic (ProhibitUnusedPrivateSubroutines)
    }
    else {
       return ($ref_wanted ? $ref_to_value : $$ref_to_value)
-         if defined($path_input) && ! length($path_input);
+        if defined($path_input) && !length($path_input);
       $crumbs = crumble($path_input);
    }
    return ($ref_wanted ? undef : '') unless defined $crumbs;
@@ -179,13 +185,13 @@ sub _V {    ## no critic (ProhibitUnusedPrivateSubroutines)
 
       # if $ref is not true, we hit a wall. How we proceed depends on
       # whether we were asked to auto-vivify or not.
-      if (! $ref) {
-         return '' unless $ref_wanted; # don't bother going on
+      if (!$ref) {
+         return '' unless $ref_wanted;    # don't bother going on
 
          # auto-vivification requested! $key will tell us how to
          # proceed further, hopefully
          $ref = ref $key;
-      }
+      } ## end if (!$ref)
 
       # if $key is a reference, it will tell us what's expected now
       if (my $key_ref = ref $key) {
@@ -196,19 +202,18 @@ sub _V {    ## no critic (ProhibitUnusedPrivateSubroutines)
 
          # OK, data and expectations agree. Get the "real" key
          if ($key_ref eq 'ARRAY') {
-            $key = $crumb->[0]; # it's an array, key is (only) element
+            $key = $crumb->[0];    # it's an array, key is (only) element
          }
          elsif ($key_ref eq 'HASH') {
-            ($key) = keys %$crumb; # hash... key is (only) key
+            ($key) = keys %$crumb;    # hash... key is (only) key
          }
-      }
+      } ## end if (my $key_ref = ref ...)
 
       # if $ref is still not true at this point, we're doing
       # auto-vivification and we have a plain key. Some guessing
       # will be needed! Plain non-negative integers resolve to ARRAY,
       # otherwise we'll consider $key as a HASH key
-      $ref ||= ($key =~ m{\A (?: 0 | [1-9]\d*) \z}mxs)
-            ? 'ARRAY' : 'HASH';
+      $ref ||= ($key =~ m{\A (?: 0 | [1-9]\d*) \z}mxs) ? 'ARRAY' : 'HASH';
 
       # time to actually do the next step
       if ($ref eq 'HASH') {
@@ -217,23 +222,19 @@ sub _V {    ## no critic (ProhibitUnusedPrivateSubroutines)
       elsif ($ref eq 'ARRAY') {
          $ref_to_value = \($$ref_to_value->[$key]);
       }
-      else { # don't know what to do with other references!
+      else {    # don't know what to do with other references!
          return $ref_wanted ? undef : '';
       }
-   } ## end for my $segment (@$pathref)
+   } ## end for my $crumb (@$crumbs)
 
    # normalize output, substitute undef with '' unless $ref_wanted
-   return $ref_wanted ? $ref_to_value
-      : defined($$ref_to_value) ? $$ref_to_value : '';
-} ## end sub _V
+   return
+       $ref_wanted             ? $ref_to_value
+     : defined($$ref_to_value) ? $$ref_to_value
+     :                           '';
 
-sub traverse {
-   my %args = (@_ && ref($_[0])) ? %{$_[0]} : @_;
-   return unless defined $args{data};
-   my $ref_wanted = $args{ref} || $args{reference_to_value} || 0;
-   my $path = exists($args{path}) ? $args{path} : '';
-   return _V($args{data}, $ref_wanted, $path);
-}
+   ## use critic
+} ## end sub traverse
 
 sub V  { return '' }
 sub A  { return }
@@ -265,11 +266,11 @@ sub _compile_sub {
       }
 
       no warnings 'redefine';
-      local *V  = sub { return           _V(\$V, 0, \@_)       ; };
-      local *A  = sub { return        \@{_V(\$V, 0, \@_) || []}; };
-      local *H  = sub { return        \%{_V(\$V, 0, \@_) || {}}; };
-      local *HK = sub { return keys   \%{_V(\$V, 0, \@_) || {}}; };
-      local *HV = sub { return values \%{_V(\$V, 0, \@_) || {}}; };
+      local *V  = sub { return           traverse(\$V, \@_)       ; };
+      local *A  = sub { return        \@{traverse(\$V, \@_) || []}; };
+      local *H  = sub { return        \%{traverse(\$V, \@_) || {}}; };
+      local *HK = sub { return keys   \%{traverse(\$V, \@_) || {}}; };
+      local *HV = sub { return values \%{traverse(\$V, \@_) || {}}; };
       use warnings 'redefine';
 
       local *STDOUT;
@@ -291,8 +292,9 @@ $outcome->{code_text}
       return \$buffer;
    }
 END_OF_CODE
+
       # print {*STDOUT} $code; exit 0;
-      $outcome->{sub} = eval $code;  ## no critic (ProhibitStringyEval)
+      $outcome->{sub} = eval $code;    ## no critic (ProhibitStringyEval)
       return $outcome if $outcome->{sub};
    }
 
@@ -405,7 +407,7 @@ sub crumble {
 
 sub _variable {
    my $path = shift;
-   my $DQ   = q<">; # double quotes
+   my $DQ   = q<">;    # double quotes
    $path = join ', ', map { $DQ . quotemeta($_) . $DQ } @{$path};
 
    return <<"END_OF_CHUNK";

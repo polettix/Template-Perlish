@@ -4,7 +4,7 @@ Template::Perlish - Yet Another Templating system for Perl
 
 # VERSION
 
-This document describes Template::Perlish version 1.41\_02.
+This document describes Template::Perlish version 1.41\_03.
 
 # SYNOPSIS
 
@@ -76,15 +76,11 @@ algorithm and the variable traversal, in case you need them:
     my $array_ref = crumble("some.'-1'.'comp-lex'.path");
     # returns [ 'some', '-1', 'comp-lex', 'path' ]
 
-    my $some_ref = {};
-    my $ref_to_value = traverse(
-       data => $some_ref,
-       path => "some.0.'comp-lex'.path"
-       ref  => 1,
-    );
+    my $var;
+    my $ref_to_value = traverse(\$var, "some.0.'comp-lex'.path");
     $$ref_to_value = 42; # note double sigil for indirection
-    # now we have that $some_ref is equal to:
-    # { some => [ { 'comp-lex' => { path => 15 } } ] }
+    # now we have that $some_variable is equal to:
+    # { some => [ { 'comp-lex' => { path => 42 } } ] }
 
 # SHOULD YOU USE THIS?
 
@@ -610,82 +606,70 @@ the same path will provide the right value:
 
 - **traverse**
 
-        my $x = traverse(%args); # OR
-        my $x = traverse(\%args);
+        my $x = traverse($data); # OR
+        my $x = traverse($data, $path);
 
     traverse an input data structure and return _something_ (depending on
-    the `%args`). Arguments can be:
+    the `$data`).
 
-    - `data`
+    The first argument `$data` is mandatory and can be:
 
-        the input data structure to traverse. It would normally be either an
-        ARRAY or a HASH reference, although it can be whatever actually (but you
-        will be able to actually _traverse_ only arrays or hashes, so you'd
-        better provide an empty path if you set `data` to anything else);
+    - _a HASH or ARRAY reference_, in which case a normal traversal will take
+    place, and missing keys/indexes will stop the traversal;
+    - _a reference to a SCALAR or to another REF_, in which case
+    auto-vivification in traversal will be enabled (see below for details);
+    - _anything else_, in which case it's better to either avoid `$path` or
+    to provide an empty one to get it back, or it is likely to give an error
+    (because you can't traverse it actually).
 
-    - `path`
+    When provided, `$path` is the path to follow inside `data`. It can be
+    either a plain string that will be split using ["crumble"](#crumble), or an array
+    reference containing the different _crumbs_ to follow. When missing, it
+    is the same as providing the empty path (i.e. an empty string or a
+    reference to an empty array).
 
-        the path to follow inside `data`. It can be either a plain string that
-        will be split using ["crumble"](#crumble), or an array reference containing the
-        different _crumbs_ to follow;
+    Depending on what is held in `$data`, you will get either a value back
+    (if auto-vivification is NOT active) or a reference to it (if it is
+    active). This also changes how the traversal is done in case of missing
+    parts.
 
-    - `ref`
-    - `reference_to_value`
-
-        boolean value to request whether a value or a reference to a value are
-        needed in output. `ref` and `ref_to_value` are synonyms, with the
-        former taking precendence on the latter if both are present.
-
-    Depending on `ref`, you will get either a value back (if it is false)
-    or a reference to it (if it is true). This parameter also changes how
-    the traversal is done in case of missing parts.
-
-    In particular, you will want to set `ref` to a false value if you want
-    to just _read_ from `data`. In this case, the first missing crumb will
-    make the function return immediately an empty string value; moreover, if
-    all crumbs are successfully found, the value will be returned. This is
-    what is actually used by the functions described in
+    In particular, you will want to pass a reference to a hash or array if
+    you want to just _read_ from `data`. In this case, the first missing
+    crumb will make the function return immediately an empty string value;
+    moreover, if all crumbs are successfully found, the value will be
+    returned. This is what is actually used by the functions described in
     ["Variables Accessors"](#variables-accessors).
 
-    If you set `ref` to a true value instead, you will get back a reference
-    to a value. In this case, any missing parts will trigger
-    auto-vivification of the data structure, i.e. the missing parts will be
-    created automatically for you. This comes handy when you want to
-    _write_ into the data structure, like in the following example:
+    If you pass a reference to a scalar or to another reference instead, you
+    will get back a reference to a value. In this case, any missing parts
+    will trigger auto-vivification of the data structure, i.e. the missing
+    parts will be created automatically for you. This comes handy when you
+    want to _write_ into the data structure, like in the following example:
 
-        my $empty_data = {};
-        my $ref_to_value = traverse(
-           data => $empty_data,
-           path => "some.0.'comp-lex'.path"
-           ref  => 1,
-        );
+        my $empty_data;
+        my $ref_to_value = traverse(\$empty_data, "some.0.'comp-lex'.path");
         $$ref_to_value = 42; # note double sigil for indirection
         # now we have that $empty_data is equal to:
-        # { some => [ { 'comp-lex' => { path => 15 } } ] }
+        # { some => [ { 'comp-lex' => { path => 42 } } ] }
 
-    You can e.g. want to use this approach if you want to provide a
-    consistent way to set variables and expand them into templates:
+    You can e.g. want to use this approach to provide a consistent way to
+    set variables and expand them into templates:
 
-        my $vars = {};
-        ${traverse(data => $vars, path => 'one.two.3')} = 42;
+        my $vars;
+        ${traverse(\$vars, 'one.two.3')} = 42;
         my $text = render('Answer is as simple as [% one.two.3 %]', $vars);
 
     Of course variable values might come from the command line or some other
     source in the real world!
 
-    When something goes wrong in the traversal, an empty string will be
-    returned in case `ref` is false, otherwise `undef` will be returned.
+    When something goes wrong in the traversal, `undef` is returned if
+    auto-vivification is enabled, an empty string is returned otherwise.
 
-    If `path` is not provided, or set to the empty string, `data` or a
-    reference to it is returned (depending on `ref`, see below). This is
-    the only real case in which `data` can actually be set to whatever you
-    want, otherwise you should stick to either hash or array references.
-
-    `path` components can be plain scalars or references themselves. When
-    they are plain scalars, they will be used directly to access `data` or
-    its descendants; otherwise, `traverse` will enforce that the current
-    descendant in `data` is a reference of the same type as the specific
-    crumb. Consider this example:
+    If `$path` is a reference to an array, its components can be plain
+    scalars or references themselves. When they are plain scalars, they are
+    used directly to access `data` or its descendants; otherwise,
+    `traverse` enforces that the current descendant in `data` is a
+    reference of the same type as the specific crumb. Consider this example:
 
         my $data = { one => { two => [ qw< ciao a tutti quanti > ] } }
         my $path1 = [ qw< one two 3 > ];           # good
@@ -714,17 +698,16 @@ the same path will provide the right value:
     becomes `3`), or the (only) key of a hash reference (as in
     `{ two => 1 }` that becomes `two`).
 
-    As already mentioned, auto-vivification kicks in if `ref` is true. In
-    this case, a reference in the `path` will also force a specific
-    auto-vivification type, i.e. the automatic creation of either an array
-    or a hash reference. If the crumb in `path` is not a reference, a guess
-    is taken in that non-negative integers are considered indexes of an
-    array, otherwise a hash is assumed. So, let's take `$path4` again, and
-    let's see what happens when `ref` is true:
+    When auto-vivification is active, a reference in the `path` will also
+    force a specific auto-vivification type, i.e. the automatic creation of
+    either an array or a hash reference. If the crumb in `path` is not a
+    reference, a guess is taken in that non-negative integers are considered
+    indexes of an array, otherwise a hash is assumed. So, let's take
+    `$path4` again, and let's see what happens when `ref` is true:
 
         my $path4 = [ qw< one two >, { 3 => 1 } ];
-        my $data = {}; # start with an empty hash
-        ${traverse(data => $data, path => $path4)} = 42;
+        my $data = {}; # start e.g. with an empty hash
+        ${traverse(\$data, $path4)} = 42;
 
     will auto-vivify `$data` completely and leave it as follows:
 
