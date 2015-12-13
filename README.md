@@ -69,6 +69,23 @@ There is also a convenience function for one-shot templates:
     use Template::Perlish qw< render >;
     my $rendered = render($template, \%variables);
 
+There are also two functions that expose the _path_ splitting
+algorithm and the variable traversal, in case you need them:
+
+    use Template::Perlish qw< crumble traverse >;
+    my $array_ref = crumble("some.'-1'.'comp-lex'.path");
+    # returns [ 'some', '-1', 'comp-lex', 'path' ]
+
+    my $some_ref = {};
+    my $ref_to_value = traverse(
+       data => $some_ref,
+       path => "some.0.'comp-lex'.path"
+       ref  => 1,
+    );
+    $$ref_to_value = 42; # note double sigil for indirection
+    # now we have that $some_ref is equal to:
+    # { some => [ { 'comp-lex' => { path => 15 } } ] }
+
 # SHOULD YOU USE THIS?
 
 You're probably looking at the tons and tons of templating systems
@@ -226,16 +243,16 @@ template:
 - **render**
 
         use Template::Perlish qw< render >;
-        my $rendered = render($template);             # OR
-        my $rendered = render($template, %variables); # OR
-        my $rendered = render($template, \%variables);
+        my $rendered = render($template);              # OR
+        my $rendered = render($template, %variables);  # OR
+        my $rendered = render($template, $var_refernce);
 
     if you already have a template and the variables to fill it in, this is
     probably the quickest thing to do.
 
     You can pass the template alone, or you can pass the variables as well,
     either as a flat list (that will be converted back to a hash) or as a
-    single hash reference.
+    single reference.
 
     Returns the rendered template, i.e. the same output as ["process"](#process).
 
@@ -260,7 +277,7 @@ template:
     - _variables_
 
         variables that will be passed to all invocations of ["process"](#process) and/or
-        ["evaluate"](#evaluate).
+        ["evaluate"](#evaluate). It MUST be a reference to a hash.
 
     Parameters can be given directly or via a hash reference.
 
@@ -297,8 +314,7 @@ template:
     time you want to "explode" the template.
 
     The anonymous sub that is returned accepts a single, optional parameter,
-    namely a reference to a hash of variables to be used in addition to the
-    "streamline" ones.
+    namely a reference with the same role as `$reference` in ["evaluate"](#evaluate).
 
     Note that if you add/change/remove values using the `variables` member
     of the Template::Perlish object, these changes will reflect on the
@@ -309,12 +325,32 @@ template:
 - **evaluate**
 
         $final_text = $tp->evaluate($compiled); # OR
-        $final_text = $tp->evaluate($compiled, \%variables);
+        $final_text = $tp->evaluate($compiled, $reference);
 
     evaluate a template (in its compiled form, see ["compile"](#compile)) with the
     available variables. In the former form, only the already configured
-    variables are used; in the latter, the given `$variables` (which is a
-    hash reference) are added, overriding any corresponding key.
+    variables are used (see ["Constructor"](#constructor); in the latter, the given
+    `$reference` is considered.
+
+    If `$reference` is a hash reference, the variables set in the
+    constructor (if any) are merged with the ones in `$reference` and
+    eventually passed for expansion of the `$compiled` template. Keys from
+    `$reference` override those from the constructor and they also end up
+    in the `%variables` lexical hash that is visible in the template's
+    scope.
+
+    As of release 1.50, `$reference` can also be something else (most
+    probably, an array reference), it is used as the variables entry point
+    instead. In this case, the `%variables` lexical hash that is visible in
+    the template's scope is shaped like this:
+
+        %variables = (
+           HASH => { variables from the constructor... },
+           REF  => $reference,
+        );
+
+    so you have in any way the chance to access the variables set in the
+    constructor.
 
     Returns the processed text as a string.
 
@@ -346,6 +382,15 @@ or explicitly using the `%variables` hash:
     [% print $variables{some}{value}[3]{lastkey} %]
 
 The former is cleaner, but the latter is more powerful of course.
+
+As of release 1.50, Template::Perlish does not assume that the input
+data structure is a hash reference any more. Hence, `%variables` might
+not actually contain your input; see ["Variables Accessors"](#variables-accessors) for a robust
+way to get the right value instead. Or you can use `$V` if you feel
+brave (it's a reference to either `%variables` or is whatever else was
+provided as input, so it alwasy points to the _right_ data). See
+["evaluate"](#evaluate) for additional information about the provided parameters
+and `%variables`.
 
 As of release 1.40, Template::Perlish also allows you to use more
 complex variable names in your data structure and your template, without
@@ -468,6 +513,8 @@ So the bottom line is: who needs escaping?
 
 ## Variables Accessors
 
+The following variable accessors can be used from within the templates.
+
 - **A**
 
         A 'path.to.arrayref'
@@ -525,6 +572,169 @@ So the bottom line is: who needs escaping?
         [%= $variables{path}{to}{variable} + 1 %]
 
     but shorter and more readable.
+
+## External Path Handling
+
+The following functions can be exported and expose the algorithms
+implemented by Template::Perlish for breaking a string into a path for
+accessing a data structure, and a traversal function to go into a data
+structure according to a path.
+
+They can be useful in case you need to build the data structure to pass
+to Template::Perlish before expanding a template. A typical case might
+be that you have a command line option to set the value of variables in
+the data structure to be expanded in the template:
+
+    $ my-command --define path.to.1.variable=blah
+
+and you want to apply the same algorithm as Template::Perlish, i.e. set
+your data structure like this:
+
+    $data->{path}{to}[1]{variable} = 'blah';
+
+This will provide consistency when expanding the template, because using
+the same path will provide the right value:
+
+    [% path.to.1.variable %] expands to blah
+
+- **crumble**
+
+        my $array_ref = crumble($path);
+
+    split the input `$path` into _crumbs_ that should be followed into
+    some data structure (you can use ["traverse"](#traverse) to do the actual
+    traversal). Returns a reference to an array with the crumbs, in order.
+    Returns `undef` if the provided `$path` cannot be broken down. See
+    ["Templates"](#templates) for the rules of breaking a path into pieces, this is the
+    actual function used to do that.
+
+- **traverse**
+
+        my $x = traverse(%args); # OR
+        my $x = traverse(\%args);
+
+    traverse an input data structure and return _something_ (depending on
+    the `%args`). Arguments can be:
+
+    - `data`
+
+        the input data structure to traverse. It would normally be either an
+        ARRAY or a HASH reference, although it can be whatever actually (but you
+        will be able to actually _traverse_ only arrays or hashes, so you'd
+        better provide an empty path if you set `data` to anything else);
+
+    - `path`
+
+        the path to follow inside `data`. It can be either a plain string that
+        will be split using ["crumble"](#crumble), or an array reference containing the
+        different _crumbs_ to follow;
+
+    - `ref`
+    - `reference_to_value`
+
+        boolean value to request whether a value or a reference to a value are
+        needed in output. `ref` and `ref_to_value` are synonyms, with the
+        former taking precendence on the latter if both are present.
+
+    Depending on `ref`, you will get either a value back (if it is false)
+    or a reference to it (if it is true). This parameter also changes how
+    the traversal is done in case of missing parts.
+
+    In particular, you will want to set `ref` to a false value if you want
+    to just _read_ from `data`. In this case, the first missing crumb will
+    make the function return immediately an empty string value; moreover, if
+    all crumbs are successfully found, the value will be returned. This is
+    what is actually used by the functions described in
+    ["Variables Accessors"](#variables-accessors).
+
+    If you set `ref` to a true value instead, you will get back a reference
+    to a value. In this case, any missing parts will trigger
+    auto-vivification of the data structure, i.e. the missing parts will be
+    created automatically for you. This comes handy when you want to
+    _write_ into the data structure, like in the following example:
+
+        my $empty_data = {};
+        my $ref_to_value = traverse(
+           data => $empty_data,
+           path => "some.0.'comp-lex'.path"
+           ref  => 1,
+        );
+        $$ref_to_value = 42; # note double sigil for indirection
+        # now we have that $empty_data is equal to:
+        # { some => [ { 'comp-lex' => { path => 15 } } ] }
+
+    You can e.g. want to use this approach if you want to provide a
+    consistent way to set variables and expand them into templates:
+
+        my $vars = {};
+        ${traverse(data => $vars, path => 'one.two.3')} = 42;
+        my $text = render('Answer is as simple as [% one.two.3 %]', $vars);
+
+    Of course variable values might come from the command line or some other
+    source in the real world!
+
+    When something goes wrong in the traversal, an empty string will be
+    returned in case `ref` is false, otherwise `undef` will be returned.
+
+    If `path` is not provided, or set to the empty string, `data` or a
+    reference to it is returned (depending on `ref`, see below). This is
+    the only real case in which `data` can actually be set to whatever you
+    want, otherwise you should stick to either hash or array references.
+
+    `path` components can be plain scalars or references themselves. When
+    they are plain scalars, they will be used directly to access `data` or
+    its descendants; otherwise, `traverse` will enforce that the current
+    descendant in `data` is a reference of the same type as the specific
+    crumb. Consider this example:
+
+        my $data = { one => { two => [ qw< ciao a tutti quanti > ] } }
+        my $path1 = [ qw< one two 3 > ];           # good
+        my $path2 = [ 'one', { two => 1 }, 3 ];    # good
+        my $path3 = [ 'one', { two => 1 }, [3] ];  # good
+        my $path4 = [ qw< one two >, { 3 => 1 } ]; # fails if ref is false
+
+    To get the `quanti` string, you have to traverse (in order) one hash,
+    one hash and one array. The first path `$path1` is good to this regard,
+    because it does not ask for any check and the last element is a good one
+    to be used as an array index.
+
+    `$path2` and `$path3` are good as well, because the required checks
+    are fine: after passing `one` we end up with a hash, that is the same
+    reference as `{ two => 1}` and gets us to the array reference.
+    `$path3` asks for a further check that we are actually dealing with an
+    array reference at this stage.
+
+    `$path4` is not good because after traversing `one` and `two` we end
+    up with an array reference. At this point, the next crumb is an hash
+    reference instead (whose key is `3`), so the matching fails.
+
+    As you have seen, if you are forcing a match on the reference type, the
+    actual key used to dive into the relevant descendant of `data` is
+    either the (only) element of an array reference (as in `[3]` that
+    becomes `3`), or the (only) key of a hash reference (as in
+    `{ two => 1 }` that becomes `two`).
+
+    As already mentioned, auto-vivification kicks in if `ref` is true. In
+    this case, a reference in the `path` will also force a specific
+    auto-vivification type, i.e. the automatic creation of either an array
+    or a hash reference. If the crumb in `path` is not a reference, a guess
+    is taken in that non-negative integers are considered indexes of an
+    array, otherwise a hash is assumed. So, let's take `$path4` again, and
+    let's see what happens when `ref` is true:
+
+        my $path4 = [ qw< one two >, { 3 => 1 } ];
+        my $data = {}; # start with an empty hash
+        ${traverse(data => $data, path => $path4)} = 42;
+
+    will auto-vivify `$data` completely and leave it as follows:
+
+        $data = {
+           one => {        # "one" is not a non-negative integer => HASH
+              two => {     # "two" is not a non-negative integer => HASH
+                 3 => 42   # { 3 => 1 } is a hash reference      => HASH
+              }
+           }
+        }
 
 # DIAGNOSTICS
 
