@@ -14,7 +14,7 @@ sub import {
 
    for my $sub (@list) {
       croak "subroutine '$sub' not exportable"
-        unless grep { $sub eq $_ } qw( render );
+        unless grep { $sub eq $_ } qw< crumble render traverse >;
 
       my $caller = caller();
 
@@ -112,7 +112,7 @@ sub _compile_code_text {
       $line_no += ($starter =~ tr/\n//);
 
       if (length $code) {
-         if (my $path = _smart_split($code)) {
+         if (my $path = crumble($code)) {
             $compiled .= _variable($path);
          }
          elsif (my ($scalar) =
@@ -147,32 +147,93 @@ sub _compile_code_text {
 } ## end sub _compile_code_text
 
 sub _V {    ## no critic (ProhibitUnusedPrivateSubroutines)
-   my $value = shift;
-   return $value unless @_;
+   my $ref_to_value = \shift;
+   my $ref_wanted = shift;
+   return ($ref_wanted ? $ref_to_value : $$ref_to_value) unless @_;
 
-   my $pathref = shift;
-   if (! ref $pathref) {
-      return $value if defined($pathref) && ! length($pathref);
-      $pathref = _smart_split($pathref);
+   my $path_input = shift;
+   return ($ref_wanted ? undef : '') unless defined $path_input;
+
+   my $crumbs;
+   if (ref $path_input) {
+      $crumbs = $path_input;
    }
-   return '' unless defined $pathref;
+   else {
+      return ($ref_wanted ? $ref_to_value : $$ref_to_value)
+         if defined($path_input) && ! length($path_input);
+      $crumbs = crumble($path_input);
+   }
+   return ($ref_wanted ? undef : '') unless defined $crumbs;
 
    # go down the rabbit hole
-   for my $segment (@$pathref) {
-      if (ref($value) eq 'HASH') {
-         $value = $value->{$segment};
+   for my $crumb (@$crumbs) {
+
+      # $key is what we will look into $$ref_to_value. We don't use
+      # $crumb directly as we might change $key in the loop, and we
+      # don't want to spoil $crumbs
+      my $key = $crumb;
+
+      # $ref tells me how to look down into $$ref_to_value, i.e. as
+      # an ARRAY or a HASH
+      my $ref = ref $$ref_to_value;
+
+      # if $ref is not true, we hit a wall. How we proceed depends on
+      # whether we were asked to auto-vivify or not.
+      if (! $ref) {
+         return '' unless $ref_wanted; # don't bother going on
+
+         # auto-vivification requested! $key will tell us how to
+         # proceed further, hopefully
+         $ref = ref $key;
       }
-      elsif (ref($value) eq 'ARRAY') {
-         $value = $value->[$segment];
+
+      # if $key is a reference, it will tell us what's expected now
+      if (my $key_ref = ref $key) {
+
+         # if $key_ref is not the same as $ref there is a mismatch
+         # between what's available ($ref) and what' expected ($key_ref)
+         return $ref_wanted ? undef : '' if $key_ref ne $ref;
+
+         # OK, data and expectations agree. Get the "real" key
+         if ($key_ref eq 'ARRAY') {
+            $key = $crumb->[0]; # it's an array, key is (only) element
+         }
+         elsif ($key_ref eq 'HASH') {
+            ($key) = keys %$crumb; # hash... key is (only) key
+         }
       }
-      else { # nothing to go down further... simply not found
-         return '';
+
+      # if $ref is still not true at this point, we're doing
+      # auto-vivification and we have a plain key. Some guessing
+      # will be needed! Plain non-negative integers resolve to ARRAY,
+      # otherwise we'll consider $key as a HASH key
+      $ref ||= ($key =~ m{\A (?: 0 | [1-9]\d*) \z}mxs)
+            ? 'ARRAY' : 'HASH';
+
+      # time to actually do the next step
+      if ($ref eq 'HASH') {
+         $ref_to_value = \($$ref_to_value->{$key});
+      }
+      elsif ($ref eq 'ARRAY') {
+         $ref_to_value = \($$ref_to_value->[$key]);
+      }
+      else { # don't know what to do with other references!
+         return $ref_wanted ? undef : '';
       }
    } ## end for my $segment (@$pathref)
 
-   # normalize output, substitute undef with ''
-   return defined($value) ? $value : '';
+   # normalize output, substitute undef with '' unless $ref_wanted
+   return $ref_wanted ? $ref_to_value
+      : defined($$ref_to_value) ? $$ref_to_value : '';
 } ## end sub _V
+
+sub traverse {
+   my %args = (@_ && ref($_[0])) ? %{$_[0]} : @_;
+   return unless defined $args{data};
+   my $ref_wanted = $args{ref} || $args{reference_to_value} || 0;
+   my $path = exists($args{path}) ? $args{path} : '';
+   return _V($args{data}, $ref_wanted, $path);
+}
 
 sub V  { return '' }
 sub A  { return }
@@ -198,16 +259,17 @@ sub _compile_sub {
             \%variables = (\%variables, \%\$vars);
          }
          else {
-            \$V = \$vars; # keep \%variables around anyway
+            \$V = \$vars;
+            \%variables = (HASH => { \%variables }, REF => \$V);
          }
       }
 
       no warnings 'redefine';
-      local *V  = sub { return           _V(\$V, \@_)       ; };
-      local *A  = sub { return        \@{_V(\$V, \@_) || []}; };
-      local *H  = sub { return        \%{_V(\$V, \@_) || {}}; };
-      local *HK = sub { return keys   \%{_V(\$V, \@_) || {}}; };
-      local *HV = sub { return values \%{_V(\$V, \@_) || {}}; };
+      local *V  = sub { return           _V(\$V, 0, \@_)       ; };
+      local *A  = sub { return        \@{_V(\$V, 0, \@_) || []}; };
+      local *H  = sub { return        \%{_V(\$V, 0, \@_) || {}}; };
+      local *HK = sub { return keys   \%{_V(\$V, 0, \@_) || {}}; };
+      local *HV = sub { return values \%{_V(\$V, 0, \@_) || {}}; };
       use warnings 'redefine';
 
       local *STDOUT;
@@ -288,11 +350,12 @@ END_OF_INDENTED_TEXT
 END_OF_CHUNK
 } ## end sub _simple_text
 
-sub _smart_split {
+sub crumble {
    my ($input) = @_;
    return unless defined $input;
 
    $input =~ s{\A\s+|\s+\z}{}gmxs;
+   return [] unless length $input;
 
    my $sq    = qr{(?mxs: ' [^']* ' )}mxs;
    my $dq    = qr{(?mxs: " (?:[^\\"] | \\.)* " )}mxs;
@@ -336,8 +399,9 @@ sub _smart_split {
       } ## end while ((pos($part) || 0) ...)
       $part = join '', @subparts;
    } ## end for my $part (@path)
+
    return \@path;
-} ## end sub _smart_split
+} ## end sub crumble
 
 sub _variable {
    my $path = shift;
