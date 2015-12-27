@@ -6,7 +6,7 @@ Template::Perlish - Yet Another Templating system for Perl
 
 =head1 VERSION
 
-This document describes Template::Perlish version 1.41_03.
+This document describes Template::Perlish version 1.41_04.
 
 
 =head1 SYNOPSIS
@@ -571,12 +571,46 @@ So the bottom line is: who needs escaping?
 =head2 Variables Accessors
 
 The following variable accessors can be used from within the templates.
+All variable accessors accept three forms:
+
+=over
+
+=item *
+
+without parameters. In this case, the root of the data is selected, then
+the operation of the accessor is applied;
+
+=item *
+
+with one parameter. In this case, the parameter is the path in the data
+structure;
+
+=item *
+
+with two parameters. In this case, the first parameter is the path in
+the data structure, while the second one is the data structure to be
+traversed.
+
+=back
+
+The third alternative is useful when you want to take advantage of the
+accessors on a sub-structure, like in the following example:
+
+   # suppose $item is a hash of hashes at each iteration...
+   for my $item (A 'some.array') {
+      my $wanted = V 'data.inside.item', $item;
+      # ... do something with $wanted...
+   }
+
+Here are the accessors:
 
 =over
 
 =item B<< A >>
 
+   A
    A 'path.to.arrayref'
+   A 'path.to.arrayref', $root
 
 get the variable at the specific path and expand it as array. This can
 be useful if you want to iterate over a variable that you know is an
@@ -590,15 +624,31 @@ is equivalent to:
 
 but more concise and a little more readable.
 
+When no path is passed, the root of the input data is assumed to be a
+reference to an array and that will be expanded.
+
+You can optionally pass a second parameter with a data structure. That
+will be used instead of the one provided to the template.
+
 =item B<< H >>
 
+   H
    H 'path.to.hashref'
+   H 'path.to.hashref', $root
 
 get the variable at the specific path and expand it as hash.
 
+When no path is passed, the root of the input data is assumed to be a
+reference to a hash and that will be expanded.
+
+You can optionally pass a second parameter with a data structure. That
+will be used instead of the one provided to the template.
+
 =item B<< HK >>
 
+   HK
    HK 'path.to.hashref'
+   HK 'path.to.hashref', $root
 
 get the variable at the specific path, expand it as hash and get its
 keys. This can be useful if you want to iterate over the keys of a
@@ -612,15 +662,25 @@ is equivalent to:
 
 but more concise and a bit more readable.
 
+When no path is passed, the root of the input data is assumed to be a
+reference to a hash and that will be expanded.
+
+You can optionally pass a second parameter with a data structure. That
+will be used instead of the one provided to the template.
+
 =item B<< HV >>
 
+   HV
    HV 'path.to.hashref'
+   HV 'path.to.hashref', $root
 
 similar to L</HK>, but provides values instead of keys.
 
 =item B<< V >>
 
+   V
    V 'path.to.variable'
+   V 'path.to.variable', $root
 
 get the variable at the specific path. The following:
 
@@ -631,6 +691,12 @@ is the same as:
    [%= $variables{path}{to}{variable} + 1 %]
 
 but shorter and more readable.
+
+When no path is passed, the root of the input data is assumed to be a
+scalar and that will be returned.
+
+You can optionally pass a second parameter with a data structure. That
+will be used instead of the one provided to the template.
 
 =back
 

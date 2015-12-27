@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use English qw( -no_match_vars );
 use constant ERROR_CONTEXT => 3;
-{ our $VERSION = '1.41_03'; }
+{ our $VERSION = '1.41_04'; }
 
 # Function-oriented interface
 sub import {
@@ -266,11 +266,31 @@ sub _compile_sub {
       }
 
       no warnings 'redefine';
-      local *V  = sub { return           traverse(\$V, \@_)       ; };
-      local *A  = sub { return        \@{traverse(\$V, \@_) || []}; };
-      local *H  = sub { return        \%{traverse(\$V, \@_) || {}}; };
-      local *HK = sub { return keys   \%{traverse(\$V, \@_) || {}}; };
-      local *HV = sub { return values \%{traverse(\$V, \@_) || {}}; };
+      local *V  = sub {
+         my \$path = scalar(\@_) ? shift : [];
+         my \$input = scalar(\@_) ? shift : \$V;
+         return traverse(\$input, \$path);
+      };
+      local *A  = sub {
+         my \$path = scalar(\@_) ? shift : [];
+         my \$input = scalar(\@_) ? shift : \$V;
+         return \@{traverse(\$input, \$path) || []};
+      };
+      local *H  = sub {
+         my \$path = scalar(\@_) ? shift : [];
+         my \$input = scalar(\@_) ? shift : \$V;
+         return \%{traverse(\$input, \$path) || {}};
+      };
+      local *HK = sub {
+         my \$path = scalar(\@_) ? shift : [];
+         my \$input = scalar(\@_) ? shift : \$V;
+         return keys \%{traverse(\$input, \$path) || {}};
+      };
+      local *HV = sub {
+         my \$path = scalar(\@_) ? shift : [];
+         my \$input = scalar(\@_) ? shift : \$V;
+         return values \%{traverse(\$input, \$path) || {}};
+      };
       use warnings 'redefine';
 
       local *STDOUT;

@@ -1,4 +1,5 @@
 {{$NEXT}}
+   - variable accessors accept an optional input data parameter
 
 1.41_03  2015-12-13 15:34:55 CET
    - simplified interface for traverse, unified with _V
