@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use English qw( -no_match_vars );
 use constant ERROR_CONTEXT => 3;
-{ our $VERSION = '1.41_04'; }
+{ our $VERSION = '1.50'; }
 
 # Function-oriented interface
 sub import {
