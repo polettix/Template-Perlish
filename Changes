@@ -1,5 +1,8 @@
 {{$NEXT}}
 
+1.50  2016-01-04 01:12:31 CET
+   - release after 373 passes on CPAN Testers (thanks!)
+
 1.41_04  2015-12-27 19:34:39 CET
    - variable accessors accept an optional input data parameter
 
