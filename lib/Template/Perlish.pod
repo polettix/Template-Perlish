@@ -698,6 +698,10 @@ scalar and that will be returned.
 You can optionally pass a second parameter with a data structure. That
 will be used instead of the one provided to the template.
 
+You can look at this accessor as an alternate form for L</traverse>,
+only with a slightly different input interface (e.g. defaulting to the
+template variables and swapped parameter positions).
+
 =back
 
 =head2 External Path Handling

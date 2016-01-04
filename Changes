@@ -1,4 +1,5 @@
 {{$NEXT}}
+   - clarification on relationship between V and traverse
 
 1.50  2016-01-04 01:12:31 CET
    - release after 373 passes on CPAN Testers (thanks!)
