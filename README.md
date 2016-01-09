@@ -623,6 +623,10 @@ Here are the accessors:
     You can optionally pass a second parameter with a data structure. That
     will be used instead of the one provided to the template.
 
+    You can look at this accessor as an alternate form for ["traverse"](#traverse),
+    only with a slightly different input interface (e.g. defaulting to the
+    template variables and swapped parameter positions).
+
 ## External Path Handling
 
 The following functions can be exported and expose the algorithms
