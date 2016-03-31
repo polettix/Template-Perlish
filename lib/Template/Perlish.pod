@@ -6,10 +6,10 @@ Template::Perlish - Yet Another Templating system for Perl
 
 =head1 VERSION
 
-This document describes Template::Perlish version 1.50.
+This document describes Template::Perlish version 1.51_00.
 
 
-=head1 SYNOPSIS
+=head1 SYNOPSYS
 
    use Template::Perlish;
 
@@ -214,7 +214,7 @@ it's also why this module is called C<Perlish>.
 
 =back
 
-Take a look at the example in the L</SYNOPSIS>, it actually contains all
+Take a look at the example in the L</SYNOPSYS>, it actually contains all
 that this module provides.
 
 To start, you'll need a C<Template::Perlish> object and, of course, a
@@ -284,7 +284,7 @@ template:
    use Template::Perlish qw< render >;
    my $rendered = render($template);              # OR
    my $rendered = render($template, %variables);  # OR
-   my $rendered = render($template, $var_refernce);
+   my $rendered = render($template, $var_referEnce);
 
 if you already have a template and the variables to fill it in, this is
 probably the quickest thing to do.
@@ -293,7 +293,8 @@ You can pass the template alone, or you can pass the variables as well,
 either as a flat list (that will be converted back to a hash) or as a
 single reference.
 
-Returns the rendered template, i.e. the same output as L</process>.
+Returns the rendered template, i.e. the same output as L</process>. Note
+that it assumes the default values for options explained in L</new>.
 
 =back
 
@@ -313,11 +314,32 @@ but only the following will make sense:
 
 =item I<start>
 
-delimiter for the start of a I<command> (as opposed to plain text/data);
+delimiter for the start of a I<command> (as opposed to plain text/data).
+
+Defaults to C<[%>;
+
+=item I<stdout>
+
+boolean value, allows to I<clobber> C<STDOUT> for collecting the
+expansion of a template, or to leave C<STDOUT> untouched.
+
+New option as of release 1.52. Until the previous stable release, this
+behaviour was the norm: inside a template, whatever C<print> to
+C<STDOUT> is trapped and put in the template expansion. For this reason,
+this option defaults to a true value (C<1>) in order to keep backwards
+compatibility.
+
+If you set this flag to a false value, C<STDOUT> will not be modified
+and will be accessible from within the templates. In this case, if you
+still want to I<print> inside the template you can use function L</P>.
+
+Defaults to a true value;
 
 =item I<stop>
 
-delimiter for the end of a I<command>;
+delimiter for the end of a I<command>.
+
+Defaults to C<%]>;
 
 =item I<variables>
 
@@ -421,6 +443,15 @@ and embed special parts with the delimiters of your choice (or stick to
 the defaults). If you have to print stuff, just print to C<STDOUT>, it
 will be automatically catpured (unless you're calling the generated code
 by yourself).
+
+As of version 1.52, the new boolean option C<stdout> has been
+introduced, allowing to keep the old behaviour (i.e. printing to
+C<STDOUT> is captured in the expanded template) described above, or to
+use the new one where C<STDOUT> is not clobbered. This parameter
+defaults to C<1> (i.e. a I<true> value, in Perl sense) for backwards
+compatibility. If you still want to I<print> out, though, you can use
+the new function L</P>. As a matter of fact, you're encouraged to always
+use C<P>, because it will work both in the old and in the new setup.
 
 Anything inside these "special" parts matching the regular expression
 C<< /^\s*\w+(?:\.\w+)*\s*$/ >>, i.e. consisting only of a sequence of
@@ -701,6 +732,71 @@ will be used instead of the one provided to the template.
 You can look at this accessor as an alternate form for L</traverse>,
 only with a slightly different input interface (e.g. defaulting to the
 template variables and swapped parameter positions).
+
+=back
+
+=head2 Direct Printing
+
+Up to version 1.50, if you C<print>ed (to C<STDOUT>, which would be the
+selected filehandle) your text would end up directly in the expanded
+text. This was (and is still) meant as a feature.
+
+As of version 1.52, this behaviour can change depending on the value of
+option C<stdout> (see L</new>). By default, its value is such that the
+old behaviour is preserved: prints to C<STDOUT> are trapped and put in
+the template's expansion.
+
+In case the new option C<stdout> is set to a false value, though, any
+C<print> will use the currently selected filehandle before entering the
+template, i.e. C<STDOUT> (the I<real> one, not the one set within the
+template) by default. This allows your code to actually communicate with
+the external world, if you need to.
+
+The following function allows you to still use a C<print>-like interface
+from within the template:
+
+=over
+
+=item B<< P >>
+
+   Hey [% P('foo-bar-baz') %], how are you?
+
+Print an expression directly to the template's expansion. Whatever the
+value of option C<stdout> (see L</new>), this function will always put
+its argument inside the template.
+
+In case C<stdout> is I<true> (which is the default value for backwards
+compatibility), C<P> and C<print> to C<STDOUT> are equivalent (as a
+matter of fact, C<P> just calls C<print> to C<STDOUT> behind the
+scenes).
+
+In case C<stdout> is I<false>, instead, C<P> will send its output to the
+template, while C<print> will send it to whatever handle is currently
+selectd, and C<print> to C<STDOUT> will use the C<STDOUT> available at
+the time of template compilation.
+
+As an example, consider the following template:
+
+   Hey '[% print 'foo' %]'
+   I spoke with '[% print {*STDOUT} 'bar' %]'
+   Do you know '[% P 'baz' %]'?
+
+If C<stdout> is I<true>, it will be expanded to:
+
+   Hey 'foo'
+   I spoke with 'bar'
+   Do you know 'baz'?
+
+If C<stdout> is I<false>, it will be expanded to:
+
+   Hey ''
+   I spoke with ''
+   Do you know 'baz'?
+
+while the string C<foo> will be printed to the currently selected
+filehandle (which is usually C<STDOUT>, but you might have something
+different in your program), and the string C<bar> is printed to
+C<STDOUT> as you know it.
 
 =back
 

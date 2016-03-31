@@ -6,7 +6,7 @@ use strict;
 use Carp;
 use English qw( -no_match_vars );
 use constant ERROR_CONTEXT => 3;
-{ our $VERSION = '1.50'; }
+{ our $VERSION = '1.51_00'; }
 
 # Function-oriented interface
 sub import {
@@ -40,10 +40,11 @@ sub render {
 sub new {
    my ($package, @rest) = @_;
    my $self = bless {
-      start     => '[%',
-      stop      => '%]',
-      utf8      => 1,
-      variables => {},
+      start      => '[%',
+      stdout     => 1,
+      stop       => '%]',
+      utf8       => 1,
+      variables  => {},
      },
      $package;
    %{$self} = (%{$self}, @rest == 1 ? %{$rest[0]} : @rest);
@@ -82,7 +83,7 @@ sub _compile_code_text {
 
    my $compiled = "# line 1 'input'\n";
    $compiled .= "use utf8;\n\n" if $self->{utf8};
-   $compiled .= "print {*STDOUT} '';\n\n";
+   $compiled .= "P('');\n\n";
    my $pos     = 0;
    my $line_no = 1;
    while ($pos < length $template) {
@@ -119,7 +120,7 @@ sub _compile_code_text {
             $code =~ m{\A\s* (\$ [[:alpha:]_]\w*) \s*\z}mxs)
          {
             $compiled .=
-              "\nprint {*STDOUT} $scalar; ### straight scalar\n\n";
+              "\nP($scalar); ### straight scalar\n\n";
          } ## end elsif (my ($scalar) = $code...)
          elsif (substr($code, 0, 1) eq q<=>) {
             $compiled .= "\n# line $line_no 'template<3,$line_no>'\n"
@@ -248,72 +249,112 @@ sub _compile_sub {
    my @warnings;
    {
       my $utf8 = $self->{utf8} ? 1 : 0;
+      my $stdout = $self->{stdout} ? 1 : 0;
       local $SIG{__WARN__} = sub { push @warnings, @_ };
-      my $code = <<"END_OF_CODE";
+      my @code;
+      push @code, <<'END_OF_CODE';
    sub {
-      my \%variables = \%{\$self->{variables}};
-      my \$V = \\\%variables; # generic kid, as before by default
+      my %variables = %{$self->{variables}};
+      my $V = \%variables; # generic kid, as before by default
 
       {
-         my \$vars = shift || {};
-         if (ref(\$vars) eq 'HASH') { # old case
-            \%variables = (\%variables, \%\$vars);
+         my $vars = shift || {};
+         if (ref($vars) eq 'HASH') { # old case
+            %variables = (%variables, %$vars);
          }
          else {
-            \$V = \$vars;
-            \%variables = (HASH => { \%variables }, REF => \$V);
+            $V = $vars;
+            %variables = (HASH => { %variables }, REF => $V);
          }
       }
+
+      my $buffer = ''; # output variable
+      my $OFH;
+END_OF_CODE
+
+      my $handle = '$OFH';
+      if ($stdout) {
+         $handle = 'STDOUT';
+         push @code, <<'END_OF_CODE';
+      local *STDOUT;
+      open STDOUT, '>', \$buffer or croak "open(): $OS_ERROR";
+      $OFH = select(STDOUT);
+END_OF_CODE
+      }
+      else {
+         push @code, <<'END_OF_CODE';
+      open $OFH, '>', \$buffer or croak "open(): $OS_ERROR";
+END_OF_CODE
+      }
+
+      push @code, "binmode $handle, ':encoding(utf8)';\n"
+         if $utf8;
+
+      push @code, <<'END_OF_CODE';
 
       no warnings 'redefine';
       local *V  = sub {
-         my \$path = scalar(\@_) ? shift : [];
-         my \$input = scalar(\@_) ? shift : \$V;
-         return traverse(\$input, \$path);
+         my $path = scalar(@_) ? shift : [];
+         my $input = scalar(@_) ? shift : $V;
+         return traverse($input, $path);
       };
       local *A  = sub {
-         my \$path = scalar(\@_) ? shift : [];
-         my \$input = scalar(\@_) ? shift : \$V;
-         return \@{traverse(\$input, \$path) || []};
+         my $path = scalar(@_) ? shift : [];
+         my $input = scalar(@_) ? shift : $V;
+         return @{traverse($input, $path) || []};
       };
       local *H  = sub {
-         my \$path = scalar(\@_) ? shift : [];
-         my \$input = scalar(\@_) ? shift : \$V;
-         return \%{traverse(\$input, \$path) || {}};
+         my $path = scalar(@_) ? shift : [];
+         my $input = scalar(@_) ? shift : $V;
+         return %{traverse($input, $path) || {}};
       };
       local *HK = sub {
-         my \$path = scalar(\@_) ? shift : [];
-         my \$input = scalar(\@_) ? shift : \$V;
-         return keys \%{traverse(\$input, \$path) || {}};
+         my $path = scalar(@_) ? shift : [];
+         my $input = scalar(@_) ? shift : $V;
+         return keys %{traverse($input, $path) || {}};
       };
       local *HV = sub {
-         my \$path = scalar(\@_) ? shift : [];
-         my \$input = scalar(\@_) ? shift : \$V;
-         return values \%{traverse(\$input, \$path) || {}};
+         my $path = scalar(@_) ? shift : [];
+         my $input = scalar(@_) ? shift : $V;
+         return values %{traverse($input, $path) || {}};
       };
-      use warnings 'redefine';
-
-      local *STDOUT;
-      open STDOUT, '>', \\my \$buffer or croak "open(): \$OS_ERROR";
-      binmode STDOUT, ':encoding(utf8)' if $utf8;
-      my \$previous_selection = select(STDOUT);
-      { # double closure to free "my" variables
-         my (\$buffer, \$previous_selection); # hide external ones
-         { # this enclusure allows using "my" again
-$outcome->{code_text}
-         }
-      }
-      select(\$previous_selection);
-      close STDOUT;
-      if ($utf8) {
-         require Encode;
-         \$buffer = Encode::decode(utf8 => \$buffer);
-      }
-      return \$buffer;
-   }
 END_OF_CODE
 
-      # print {*STDOUT} $code; exit 0;
+      push @code, <<"END_OF_CODE";
+      local *P = sub { return print $handle \@_; };
+      use warnings 'redefine';
+
+END_OF_CODE
+
+
+
+      push @code, <<'END_OF_CODE';
+      { # double closure to free "my" variables
+         my ($buffer, $OFH); # hide external ones
+END_OF_CODE
+
+      # the real code! one additional scope indentation to ensure we
+      # can "my" variables again
+      push @code,
+         "{\n", # this enclusure allows using "my" again
+         $outcome->{code_text},
+         "}\n}\n\n";
+
+      push @code, "select(\$OFH);\n" if $stdout;
+      push @code, "close $handle;\n\n";
+
+      if ($utf8) {
+         push @code, <<'END_OF_CODE';
+      require Encode;
+      $buffer = Encode::decode(utf8 => $buffer);
+
+END_OF_CODE
+      }
+
+      push @code, "return \$buffer;\n}\n";
+
+      my $code = join '', @code;
+      #print {*STDOUT} $code, "\n\n\n\n\n"; exit 0;
       $outcome->{sub} = eval $code;    ## no critic (ProhibitStringyEval)
       return $outcome if $outcome->{sub};
    }
@@ -355,19 +396,19 @@ sub _extract_section {
 sub _simple_text {
    my $text = shift;
 
-   return "print {*STDOUT} '$text';\n\n" if $text !~ /[\n'\\]/mxs;
+   return "P('$text');\n\n" if $text !~ /[\n'\\]/mxs;
 
    $text =~ s/^/ /gmxs;    # indent, trick taken from diff -u
    return <<"END_OF_CHUNK";
 ### Verbatim text
-print {*STDOUT} do {
+P(do {
    my \$text = <<'END_OF_INDENTED_TEXT';
 $text
 END_OF_INDENTED_TEXT
    \$text =~ s/^ //gms;      # de-indent
    substr \$text, -1, 1, ''; # get rid of added newline
    \$text;
-};
+});
 
 END_OF_CHUNK
 } ## end sub _simple_text
@@ -432,7 +473,7 @@ sub _variable {
 
    return <<"END_OF_CHUNK";
 ### Variable from the stash (\$V)
-print {*STDOUT} V([$path]);
+P(V([$path]));
 
 END_OF_CHUNK
 } ## end sub _variable
@@ -445,7 +486,7 @@ sub _expression {
    my \$value = do {{
 $expression
    }};
-   print {*STDOUT} \$value if defined \$value;
+   P(\$value) if defined \$value;
 }
 
 END_OF_CHUNK

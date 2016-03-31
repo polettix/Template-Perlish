@@ -4,7 +4,7 @@ Template::Perlish - Yet Another Templating system for Perl
 
 # VERSION
 
-This document describes Template::Perlish version 1.50.
+This document describes Template::Perlish version 1.51\_00.
 
 # SYNOPSIS
 
