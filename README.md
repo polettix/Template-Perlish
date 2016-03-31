@@ -6,7 +6,7 @@ Template::Perlish - Yet Another Templating system for Perl
 
 This document describes Template::Perlish version 1.51\_00.
 
-# SYNOPSIS
+# SYNOPSYS
 
     use Template::Perlish;
 
@@ -173,7 +173,7 @@ _Commands_ can be of four different types:
     modules, etc etc. This the most lazy approach I could think about, and
     it's also why this module is called `Perlish`.
 
-Take a look at the example in the ["SYNOPSIS"](#synopsis), it actually contains all
+Take a look at the example in the ["SYNOPSYS"](#synopsys), it actually contains all
 that this module provides.
 
 To start, you'll need a `Template::Perlish` object and, of course, a
@@ -241,7 +241,7 @@ template:
         use Template::Perlish qw< render >;
         my $rendered = render($template);              # OR
         my $rendered = render($template, %variables);  # OR
-        my $rendered = render($template, $var_refernce);
+        my $rendered = render($template, $var_referEnce);
 
     if you already have a template and the variables to fill it in, this is
     probably the quickest thing to do.
@@ -250,7 +250,8 @@ template:
     either as a flat list (that will be converted back to a hash) or as a
     single reference.
 
-    Returns the rendered template, i.e. the same output as ["process"](#process).
+    Returns the rendered template, i.e. the same output as ["process"](#process). Note
+    that it assumes the default values for options explained in ["new"](#new).
 
 ## Constructor
 
@@ -264,11 +265,32 @@ template:
 
     - _start_
 
-        delimiter for the start of a _command_ (as opposed to plain text/data);
+        delimiter for the start of a _command_ (as opposed to plain text/data).
+
+        Defaults to `[%`;
+
+    - _stdout_
+
+        boolean value, allows to _clobber_ `STDOUT` for collecting the
+        expansion of a template, or to leave `STDOUT` untouched.
+
+        New option as of release 1.52. Until the previous stable release, this
+        behaviour was the norm: inside a template, whatever `print` to
+        `STDOUT` is trapped and put in the template expansion. For this reason,
+        this option defaults to a true value (`1`) in order to keep backwards
+        compatibility.
+
+        If you set this flag to a false value, `STDOUT` will not be modified
+        and will be accessible from within the templates. In this case, if you
+        still want to _print_ inside the template you can use function ["P"](#p).
+
+        Defaults to a true value;
 
     - _stop_
 
-        delimiter for the end of a _command_;
+        delimiter for the end of a _command_.
+
+        Defaults to `%]`;
 
     - _variables_
 
@@ -364,6 +386,15 @@ and embed special parts with the delimiters of your choice (or stick to
 the defaults). If you have to print stuff, just print to `STDOUT`, it
 will be automatically catpured (unless you're calling the generated code
 by yourself).
+
+As of version 1.52, the new boolean option `stdout` has been
+introduced, allowing to keep the old behaviour (i.e. printing to
+`STDOUT` is captured in the expanded template) described above, or to
+use the new one where `STDOUT` is not clobbered. This parameter
+defaults to `1` (i.e. a _true_ value, in Perl sense) for backwards
+compatibility. If you still want to _print_ out, though, you can use
+the new function ["P"](#p). As a matter of fact, you're encouraged to always
+use `P`, because it will work both in the old and in the new setup.
 
 Anything inside these "special" parts matching the regular expression
 `/^\s*\w+(?:\.\w+)*\s*$/`, i.e. consisting only of a sequence of
@@ -627,6 +658,67 @@ Here are the accessors:
     only with a slightly different input interface (e.g. defaulting to the
     template variables and swapped parameter positions).
 
+## Direct Printing
+
+Up to version 1.50, if you `print`ed (to `STDOUT`, which would be the
+selected filehandle) your text would end up directly in the expanded
+text. This was (and is still) meant as a feature.
+
+As of version 1.52, this behaviour can change depending on the value of
+option `stdout` (see ["new"](#new)). By default, its value is such that the
+old behaviour is preserved: prints to `STDOUT` are trapped and put in
+the template's expansion.
+
+In case the new option `stdout` is set to a false value, though, any
+`print` will use the currently selected filehandle before entering the
+template, i.e. `STDOUT` (the _real_ one, not the one set within the
+template) by default. This allows your code to actually communicate with
+the external world, if you need to.
+
+The following function allows you to still use a `print`-like interface
+from within the template:
+
+- **P**
+
+        Hey [% P('foo-bar-baz') %], how are you?
+
+    Print an expression directly to the template's expansion. Whatever the
+    value of option `stdout` (see ["new"](#new)), this function will always put
+    its argument inside the template.
+
+    In case `stdout` is _true_ (which is the default value for backwards
+    compatibility), `P` and `print` to `STDOUT` are equivalent (as a
+    matter of fact, `P` just calls `print` to `STDOUT` behind the
+    scenes).
+
+    In case `stdout` is _false_, instead, `P` will send its output to the
+    template, while `print` will send it to whatever handle is currently
+    selectd, and `print` to `STDOUT` will use the `STDOUT` available at
+    the time of template compilation.
+
+    As an example, consider the following template:
+
+        Hey '[% print 'foo' %]'
+        I spoke with '[% print {*STDOUT} 'bar' %]'
+        Do you know '[% P 'baz' %]'?
+
+    If `stdout` is _true_, it will be expanded to:
+
+        Hey 'foo'
+        I spoke with 'bar'
+        Do you know 'baz'?
+
+    If `stdout` is _false_, it will be expanded to:
+
+        Hey ''
+        I spoke with ''
+        Do you know 'baz'?
+
+    while the string `foo` will be printed to the currently selected
+    filehandle (which is usually `STDOUT`, but you might have something
+    different in your program), and the string `bar` is printed to
+    `STDOUT` as you know it.
+
 ## External Path Handling
 
 The following functions can be exported and expose the algorithms
@@ -809,7 +901,8 @@ None, apart a fairly recent version of Perl.
 
 # INCOMPATIBILITIES
 
-None reported.
+As of version 1.52, providing an empty template will give you back an
+empty string, as opposed to `undef` that is the old behaviour.
 
 # BUGS AND LIMITATIONS
 
