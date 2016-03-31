@@ -1006,7 +1006,8 @@ None, apart a fairly recent version of Perl.
 
 =head1 INCOMPATIBILITIES
 
-None reported.
+As of version 1.52, providing an empty template will give you back an
+empty string, as opposed to C<undef> that is the old behaviour.
 
 
 =head1 BUGS AND LIMITATIONS

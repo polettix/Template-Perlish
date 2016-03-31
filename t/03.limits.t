@@ -19,8 +19,8 @@ my %vars = (
 );
 
 my %case_for = (
-   'empty'                => ['',                      undef],
-   'only one variable'    => ['[% sname %]',          'ilcognome',],
+   'empty'                => ['',                      ''],
+   'only one variable'    => ['[% sname %]',           'ilcognome',],
    'only one block'       => ['[% print "ciao\n"; %]', "ciao\n",],
    'ending with variable' => [
       "yadda yadda\n yadda\n  blash[% name %]",

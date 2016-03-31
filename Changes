@@ -1,6 +1,7 @@
 {{$NEXT}}
    - clarification on relationship between V and traverse
    - added STDOUT usage avoidance and P function
+   - changed output in case of empty template, now empty string
 
 1.50  2016-01-04 01:12:31 CET
    - release after 373 passes on CPAN Testers (thanks!)
