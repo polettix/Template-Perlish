@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 14; # last test to print
+use Test::More tests => 16; # last test to print
 
 BEGIN {
    use_ok('Template::Perlish');
@@ -33,10 +33,23 @@ END_OF_TEMPLATE
    is($processed, $template, 'simple template, again');
 }
 {
-   my $template = <<END_OF_TEMPLATE;
+   local *STDOUT;
+   my $buffer = '';
+   open STDOUT, '>', \$buffer or die "open(): $!";
+
+   my $guard = '';
+   my $packvar = __PACKAGE__ . '::GUARDFH';
+   {
+      no strict 'refs';
+      open $$packvar, '>', \$guard or die "open(): $!";
+   }
+
+   my $template = <<"END_OF_TEMPLATE";
 This is a simple template with nothing really interesting.
 [% 
-   print "ciao";
+   print 'ciao';
+   select \$$packvar;
+   print 'hallo';
 %]
 At least a block
 END_OF_TEMPLATE
@@ -47,7 +60,17 @@ At least a block
 END_OF_TEMPLATE
    my $processed = $tt->process($template);
    is($processed, $result, 'simple template with a block')
-      or diag($tt->compile($template)->{code_text});
+      or diag("\n\n" . $tt->compile($template)->{code_text});
+
+   {
+      no strict 'refs';
+      close $$packvar;
+   }
+   is($guard, 'hallo', 'print to selected fh was successful');
+
+   print {*STDOUT} 'whatever';
+   close STDOUT;
+   is($buffer, 'whatever', 'previously selected handle restored');
 }
 {
    my $template = <<END_OF_TEMPLATE;
