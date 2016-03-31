@@ -922,7 +922,7 @@ Flavio Poletti <polettix@cpan.org>
 
 # LICENSE AND COPYRIGHT
 
-Copyright (c) 2008-2015 by Flavio Poletti `polettix@cpan.org`.
+Copyright (c) 2008-2016 by Flavio Poletti `polettix@cpan.org`.
 
 This module is free software.  You can redistribute it and/or modify it
 under the terms of the Artistic License 2.0.
