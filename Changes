@@ -1,4 +1,6 @@
 {{$NEXT}}
+
+1.51_00  2016-03-31 19:03:20 CEST
    - clarification on relationship between V and traverse
    - added STDOUT usage avoidance and P function
    - changed output in case of empty template, now empty string
