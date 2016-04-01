@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More;    # tests => 4; # last test to print
+use Test::More tests => 19; # last test to print
 use Template::Perlish qw< traverse >;
 
 my $hash = {
