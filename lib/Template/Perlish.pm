@@ -9,6 +9,7 @@ use Carp;
 use English qw( -no_match_vars );
 use constant ERROR_CONTEXT => 3;
 { our $VERSION = '1.5101'; }
+use Scalar::Util qw< blessed reftype >;
 
 # Function-oriented interface
 sub import {
@@ -48,6 +49,7 @@ sub render {
             start  => '[%',
             stdout => 1,
             stop   => '%]',
+            strict_blessed => 0,
             traverse_methods => 0,
             utf8   => 1,
          },
@@ -191,8 +193,14 @@ sub traverse {  ## no critic (RequireArgUnpacking,ProhibitExcessComplexity)
    my $iref         = ref($_[0]);
    my $ref_wanted   = ($iref eq 'SCALAR') || ($iref eq 'REF');
    my $ref_to_value = $ref_wanted ? shift : \shift;
-   return ($ref_wanted ? $ref_to_value : $$ref_to_value) unless @_;
 
+   # early detection of options, remove them from args list
+   my $opts = (@_ && (ref($_[-1]) eq 'HASH')) ? pop(@_) : {};
+
+   # if there's not $path provided, just don't bother going on. Actually,
+   # no $path means just return root, undefined path is always "not
+   # present" though.
+   return ($ref_wanted ? $ref_to_value : $$ref_to_value) unless @_;
    my $path_input = shift;
    return ($ref_wanted ? undef : '') unless defined $path_input;
 
@@ -208,6 +216,12 @@ sub traverse {  ## no critic (RequireArgUnpacking,ProhibitExcessComplexity)
    return ($ref_wanted ? undef : '') unless defined $crumbs;
 
    # go down the rabbit hole
+   my $use_method = $opts->{traverse_methods} || 0;
+   my ($strict_blessed, $method_pre) = (0, 0);
+   if ($use_method) {
+      $strict_blessed = $opts->{strict_blessed} || 0;
+      $method_pre = (! $strict_blessed && $opts->{method_over_key}) || 0;
+   }
    for my $crumb (@$crumbs) {
 
       # $key is what we will look into $$ref_to_value. We don't use
@@ -216,8 +230,8 @@ sub traverse {  ## no critic (RequireArgUnpacking,ProhibitExcessComplexity)
       my $key = $crumb;
 
       # $ref tells me how to look down into $$ref_to_value, i.e. as
-      # an ARRAY or a HASH
-      my $ref = ref $$ref_to_value;
+      # an ARRAY or a HASH... or object
+      my $ref = reftype $$ref_to_value;
 
       # if $ref is not true, we hit a wall. How we proceed depends on
       # whether we were asked to auto-vivify or not.
@@ -234,7 +248,7 @@ sub traverse {  ## no critic (RequireArgUnpacking,ProhibitExcessComplexity)
 
          # if $key_ref is not the same as $ref there is a mismatch
          # between what's available ($ref) and what' expected ($key_ref)
-         return $ref_wanted ? undef : '' if $key_ref ne $ref;
+         return($ref_wanted ? undef : '') if $key_ref ne $ref;
 
          # OK, data and expectations agree. Get the "real" key
          if ($key_ref eq 'ARRAY') {
@@ -252,7 +266,26 @@ sub traverse {  ## no critic (RequireArgUnpacking,ProhibitExcessComplexity)
       $ref ||= ($key =~ m{\A (?: 0 | [1-9]\d*) \z}mxs) ? 'ARRAY' : 'HASH';
 
       # time to actually do the next step
-      if ($ref eq 'HASH') {
+      my $is_blessed = blessed $$ref_to_value;
+      my $method = $is_blessed && $$ref_to_value->can($key);
+      if ($is_blessed && $strict_blessed) {
+         return($ref_wanted ? undef : '') unless $method;
+         $ref_to_value = \($$ref_to_value->$method());
+      }
+      elsif ($method && $method_pre) {
+         $ref_to_value = \($$ref_to_value->$method());
+      }
+      elsif (($ref eq 'HASH') && exists($$ref_to_value->{$key})) {
+         $ref_to_value = \($$ref_to_value->{$key});
+      }
+      elsif (($ref eq 'ARRAY') && exists($$ref_to_value->[$key])) {
+         $ref_to_value = \($$ref_to_value->[$key]);
+      }
+      elsif ($method && $use_method) {
+         $ref_to_value = \($$ref_to_value->$method());
+      }
+      # autovivification goes here eventually
+      elsif ($ref eq 'HASH') {
          $ref_to_value = \($$ref_to_value->{$key});
       }
       elsif ($ref eq 'ARRAY') {
@@ -331,27 +364,27 @@ END_OF_CODE
       local *V  = sub {
          my $path = scalar(@_) ? shift : [];
          my $input = scalar(@_) ? shift : $V;
-         return traverse($input, $path);
+         return traverse($input, $path, $self);
       };
       local *A  = sub {
          my $path = scalar(@_) ? shift : [];
          my $input = scalar(@_) ? shift : $V;
-         return @{traverse($input, $path) || []};
+         return @{traverse($input, $path, $self) || []};
       };
       local *H  = sub {
          my $path = scalar(@_) ? shift : [];
          my $input = scalar(@_) ? shift : $V;
-         return %{traverse($input, $path) || {}};
+         return %{traverse($input, $path, $self) || {}};
       };
       local *HK = sub {
          my $path = scalar(@_) ? shift : [];
          my $input = scalar(@_) ? shift : $V;
-         return keys %{traverse($input, $path) || {}};
+         return keys %{traverse($input, $path, $self) || {}};
       };
       local *HV = sub {
          my $path = scalar(@_) ? shift : [];
          my $input = scalar(@_) ? shift : $V;
-         return values %{traverse($input, $path) || {}};
+         return values %{traverse($input, $path, $self) || {}};
       };
 END_OF_CODE
 

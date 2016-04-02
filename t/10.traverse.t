@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 19; # last test to print
+use Test::More tests => 31; # last test to print
 use Template::Perlish qw< traverse >;
 
 my $hash = {
@@ -79,6 +79,19 @@ my @tests = (
       42,
       'auto-vivified index has right value now'
    ],
+   [
+      [$data, ['inexistent', {4 => 1}, 2], {traverse_methods => 1}],
+      42, 'set traverse_methods to 1, unblessed stuff'
+   ],
+   [
+      [
+         $data,
+         ['inexistent', {4 => 1}, 2],
+         {traverse_methods => 1, strict_blessed => 1}
+      ],
+      42,
+      'traverse_methods and strict_blessed, unblessed stuff'
+   ],
 );
 
 for my $spec (@tests) {
@@ -98,8 +111,72 @@ for my $spec (@tests) {
    use Data::Dumper;
    my $var;
    my $ref_to_value = traverse(\$var, "some.0.'comp-lex'.path");
-   $$ref_to_value = 42; # note double sigil for indirection
+   $$ref_to_value = 42;    # note double sigil for indirection
    is $var->{some}[0]{'comp-lex'}{path}, 42, 'starting from undef var';
 }
 
-done_testing(1 + scalar @tests);
+$data->{objects}{hash} = Some::Thing->new({foobar => 'baz', on => 1});
+$data->{objects}{array} = Some::Thing->new(['a' .. 'd']);
+{
+   my $got = traverse($data, [qw< objects hash foobar >]);
+   is $got, 'baz', 'default does not consider blessed objects';
+
+   $got =
+     traverse($data, [qw< objects hash foobar >], {traverse_methods => 1});
+   is $got, 'baz', 'default key wins on method';
+
+   $got =
+     traverse($data, [qw< objects hash baz >], {traverse_methods => 1});
+   is $got, 'hey', 'default fallback on method';
+
+   $got =
+     traverse($data, [qw< objects hash on >],
+      {traverse_methods => 1, method_over_key => 1});
+   is $got, 1, 'fallback from method to key';
+
+   $got =
+     traverse($data, [qw< objects hash foobar what >],
+      {traverse_methods => 1, method_over_key => 1});
+   is $got, 'ever', 'method_over_key, method wins';
+
+   $got =
+     traverse($data, [qw< objects hash on >],
+      {traverse_methods => 1, strict_blessed => 1});
+   is $got, '', 'no fallback from method to key with strict_blessed';
+
+   $got = traverse($data, [qw< objects array 0 >]);
+   is $got, 'a', 'default does not consider blessed objects (aref)';
+
+   $got =
+     traverse($data, [qw< objects array 2 >],
+      {traverse_methods => 1, method_over_key => 1});
+   is $got, 'c', 'fallback from method to key (aref)';
+
+   $got =
+     traverse($data, [qw< objects array foobar what >],
+      {traverse_methods => 1, method_over_key => 1});
+   is $got, 'ever', 'method_over_key, method wins (aref)';
+
+   $got =
+     traverse($data, [qw< objects array 2 >],
+      {traverse_methods => 1, strict_refs => 1});
+   is $got, 'c', 'no fallback from method to key with strict_blessed (aref)';
+}
+
+done_testing();
+
+package Some::Thing;
+
+sub new {
+   my $package = shift;
+   my $self    = shift;
+   return bless $self, $package;
+}
+
+sub foobar {
+   return {what => 'ever'};
+}
+
+sub baz { return 'hey' }
+
+1;

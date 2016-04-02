@@ -6,7 +6,7 @@ Template::Perlish - Yet Another Templating system for Perl
 
 =head1 VERSION
 
-This document describes Template::Perlish version 1.51_00.
+This document describes Template::Perlish version 1.5101.
 
 
 =head1 SYNOPSYS
@@ -304,13 +304,19 @@ that it assumes the default values for options explained in L</new>.
 
 =item B<new>
 
-   $tp = Template::Perlish->new(%opts); # OR
+   $tp = Template::Perlish->new(@opts); # OR
    $tp = Template::Perlish->new(\%opts);
 
 constructor, does exactly what you think. You can provide any parameter,
 but only the following will make sense:
 
 =over
+
+=item I<method_over_keys>
+
+boolean flag used for traversal, see L</traverse>.
+
+Defaults to I<false>;
 
 =item I<start>
 
@@ -333,7 +339,7 @@ If you set this flag to a false value, C<STDOUT> will not be modified
 and will be accessible from within the templates. In this case, if you
 still want to I<print> inside the template you can use function L</P>.
 
-Defaults to a true value;
+Defaults to I<true>;
 
 =item I<stop>
 
@@ -341,20 +347,81 @@ delimiter for the end of a I<command>.
 
 Defaults to C<%]>;
 
+=item I<strict_blessed>
+
+boolean flag used for traversal, see L</traverse>.
+
+Defaults to I<false>;
+
+=item I<traverse_methods>
+
+boolean flag used for traversal, see L</traverse>.
+
+Defaults to I<false>;
+
 =item I<variables>
 
 variables that will be passed to all invocations of L</process> and/or
 L</evaluate>. It MUST be a reference to a hash.
 
+Defaults to an empty hash reference.
+
+=item I<-preset>
+
+this is a I<meta>-option and is available only when the constructor is
+called with a list of key/value pairs, not with a hash reference.
+
+This allows you to load canned sequences of presets that will be exposed
+for different releases and allow you to quickly tune the usage of
+Template::Perlish, while still keeping backwards compatibility.
+
+Each preset is overlaid on the configuration as soon as it is
+encountered in the arguments list, so order matters. Here are the
+available presets:
+
+=over
+
+=item C<default>
+
+sets defaults values written above;
+
+=item C<1.52>
+
+overrides C<stdout> to a I<false> value, while setting
+C<traverse_method> and C<method_over_key> to a I<true> one. As a matter
+of fact, it enables all new options available in release 1.52 in one
+single shot.
+
 =back
 
-Parameters can be given directly or via a hash reference.
+As an example, if you want to use the new features in 1.52 but you would
+like keys in a hash to take precedence over methods, you can do either
+of the following:
+
+    $o = Template::Perlish->new(
+        -preset => '1.52',
+        method_over_key => 0,
+    );
+
+    # OR
+
+    $o = Template::Perlish->new(
+        stdout => 1,
+        traverse_methods => 0,
+    );
+
+=back
+
+Parameters can be given directly as key-value pairs or via a hash
+reference. In the former case, you can provide the same option multiple
+times and also use meta-option C<-preset> described above.
 
 By default, the delimiters are the same as TT2, i.e. C<[%> and C<%]>,
 and the variables hash is empty.
 
-The return value is a reference to an anonymous hash, whose three
-elements are the ones described above. You can modify them at will.
+The return value is a reference to an anonymous hash, whose elements are
+the ones described above. You can modify them at will, there are no
+accessors for this simple object.
 
 =back
 
@@ -840,7 +907,9 @@ actual function used to do that.
 =item B<< traverse >>
 
    my $x = traverse($data); # OR
-   my $x = traverse($data, $path);
+   my $x = traverse($data \%opts); # OR
+   my $x = traverse($data, $path); # OR
+   my $x = traverse($data, $path, \%opts);
 
 traverse an input data structure and return I<something> (depending on
 the C<$data>).
@@ -892,8 +961,8 @@ parts will be created automatically for you. This comes handy when you
 want to I<write> into the data structure, like in the following example:
 
    my $empty_data;
-   my $ref_to_value = traverse(\$empty_data, "some.0.'comp-lex'.path");
-   $$ref_to_value = 42; # note double sigil for indirection
+   my $ref_to_v = traverse(\$empty_data, "some.0.'comp-lex'.path");
+   $$ref_to_v = 42; # note double sigil for indirection
    # now we have that $empty_data is equal to:
    # { some => [ { 'comp-lex' => { path => 42 } } ] }
 
@@ -902,7 +971,7 @@ set variables and expand them into templates:
 
    my $vars;
    ${traverse(\$vars, 'one.two.3')} = 42;
-   my $text = render('Answer is as simple as [% one.two.3 %]', $vars);
+   my $text = render('It is as simple as [% one.two.3 %]', $vars);
 
 Of course variable values might come from the command line or some other
 source in the real world!
@@ -920,7 +989,7 @@ reference of the same type as the specific crumb. Consider this example:
    my $path1 = [ qw< one two 3 > ];           # good
    my $path2 = [ 'one', { two => 1 }, 3 ];    # good
    my $path3 = [ 'one', { two => 1 }, [3] ];  # good
-   my $path4 = [ qw< one two >, { 3 => 1 } ]; # fails if ref is false
+   my $path4 = [ qw< one two >, { 3 => 1 } ]; # fails if !ref
 
 To get the C<quanti> string, you have to traverse (in order) one hash,
 one hash and one array. The first path C<$path1> is good to this regard,
@@ -964,6 +1033,92 @@ will auto-vivify C<$data> completely and leave it as follows:
       }
    }
 
+As of version 1.52, you can also pass an extra hash reference with some
+additional options for traversal. For example, consider the following
+setup:
+
+    sub what { return 'hey' };
+    sub urgh { return 'gaah!' }
+    my $object = bless {what => 'ever', foo => 'bar'}, __PACKAGE__;
+
+Object C<$object> is a blessed hash reference with two keys, two methods
+and one method that has the same name of one of the keys. The different
+available options will help you decide what to do in this situation:
+
+=over
+
+=item C<method_over_key>
+
+when traversal by method is enabled (see C<traverse_methods> below),
+this option allows controlling whether the key or the method win when
+both are present.
+
+In the example above, if this option is set to a I<true> value the path
+C<what> triggers a method call; otherwise, the value in the hash is
+considered (i.e. C<ever> in the example). When a key is not present, the
+method is called as a fallback.
+
+Defaults to a I<false> value.
+
+=item C<strict_blessed>
+
+when traversal by method is enabled (see below), whenever a blessed
+object is hit in the traversal only method calls are allowed. This
+disables I<peeking> inside the object in case a method is not available
+but a key exists.
+
+In the example above, using path C<what> always triggers the method call
+(returning C<hey>), using path C<urgh> calls the method call, using path
+C<foo> returns the empty string.
+
+This option hides option C<method_over_key>.
+
+Defaults to a I<false> value.
+
+=item C<traverse_methods>
+
+boolean flag to enable traversal of blessed objects using method calls
+instead of direct inspection by key. When this is false, the other two
+options above are ignored.
+
+In the example object, if this parameter is set to a I<false> value the
+object will be considered just a plain hash. Otherwise, what a visit for
+keys C<what>, C<urgh> and C<foo> returns depends on the options above.
+
+Defaults to a false value for backwards compatibility.
+
+=back
+
+The following scheme attempts to explain what happens in the different
+cases:
+
+    traverse_methods = false (default)
+      strict_blessed = whatever
+    method_over_keys = whatever
+        what -> 'ever'      # key is used, method is ignored
+        foo  -> 'bar'       # key is used
+        urgh -> ''          # method is ignored
+
+    traverse_methods = true
+      strict_blessed = false (default)
+    method_over_keys = false (default)
+        what -> 'ever'      # key wins over method
+        foo  -> 'bar'       # key is used
+        urgh -> 'gaah!'     # no key, method is called
+
+    traverse_methods = true
+      strict_blessed = false (default)
+    method_over_keys = true
+        what -> 'hey'       # method wins over key
+        foo  -> 'bar'       # key is used
+        urgh -> 'gaah!'     # method is called
+
+    traverse_methods = true
+      strict_blessed = true
+    method_over_keys = whatever
+        what -> 'hey'       # method wins over key
+        foo  -> ''          # key is ignored
+        urgh -> 'gaah!'     # method is called
 
 =back
 

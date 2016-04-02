@@ -4,7 +4,7 @@ Template::Perlish - Yet Another Templating system for Perl
 
 # VERSION
 
-This document describes Template::Perlish version 1.51\_00.
+This document describes Template::Perlish version 1.5101.
 
 # SYNOPSYS
 
@@ -257,11 +257,17 @@ template:
 
 - **new**
 
-        $tp = Template::Perlish->new(%opts); # OR
+        $tp = Template::Perlish->new(@opts); # OR
         $tp = Template::Perlish->new(\%opts);
 
     constructor, does exactly what you think. You can provide any parameter,
     but only the following will make sense:
+
+    - _method\_over\_keys_
+
+        boolean flag used for traversal, see ["traverse"](#traverse).
+
+        Defaults to _false_;
 
     - _start_
 
@@ -284,7 +290,7 @@ template:
         and will be accessible from within the templates. In this case, if you
         still want to _print_ inside the template you can use function ["P"](#p).
 
-        Defaults to a true value;
+        Defaults to _true_;
 
     - _stop_
 
@@ -292,18 +298,75 @@ template:
 
         Defaults to `%]`;
 
+    - _strict\_blessed_
+
+        boolean flag used for traversal, see ["traverse"](#traverse).
+
+        Defaults to _false_;
+
+    - _traverse\_methods_
+
+        boolean flag used for traversal, see ["traverse"](#traverse).
+
+        Defaults to _false_;
+
     - _variables_
 
         variables that will be passed to all invocations of ["process"](#process) and/or
         ["evaluate"](#evaluate). It MUST be a reference to a hash.
 
-    Parameters can be given directly or via a hash reference.
+        Defaults to an empty hash reference.
+
+    - _-preset_
+
+        this is a _meta_-option and is available only when the constructor is
+        called with a list of key/value pairs, not with a hash reference.
+
+        This allows you to load canned sequences of presets that will be exposed
+        for different releases and allow you to quickly tune the usage of
+        Template::Perlish, while still keeping backwards compatibility.
+
+        Each preset is overlaid on the configuration as soon as it is
+        encountered in the arguments list, so order matters. Here are the
+        available presets:
+
+        - `default`
+
+            sets defaults values written above;
+
+        - `1.52`
+
+            overrides `stdout` to a _false_ value, while setting
+            `traverse_method` and `method_over_key` to a _true_ one. As a matter
+            of fact, it enables all new options available in release 1.52 in one
+            single shot.
+
+        As an example, if you want to use the new features in 1.52 but you would
+        like keys in a hash to take precedence over methods, you can do either
+        of the following:
+
+            $o = Template::Perlish->new(
+                -preset => '1.52',
+                method_over_key => 0,
+            );
+
+            # OR
+
+            $o = Template::Perlish->new(
+                stdout => 1,
+                traverse_methods => 0,
+            );
+
+    Parameters can be given directly as key-value pairs or via a hash
+    reference. In the former case, you can provide the same option multiple
+    times and also use meta-option `-preset` described above.
 
     By default, the delimiters are the same as TT2, i.e. `[%` and `%]`,
     and the variables hash is empty.
 
-    The return value is a reference to an anonymous hash, whose three
-    elements are the ones described above. You can modify them at will.
+    The return value is a reference to an anonymous hash, whose elements are
+    the ones described above. You can modify them at will, there are no
+    accessors for this simple object.
 
 ## Template Handling
 
@@ -757,7 +820,9 @@ the same path will provide the right value:
 - **traverse**
 
         my $x = traverse($data); # OR
-        my $x = traverse($data, $path);
+        my $x = traverse($data \%opts); # OR
+        my $x = traverse($data, $path); # OR
+        my $x = traverse($data, $path, \%opts);
 
     traverse an input data structure and return _something_ (depending on
     the `$data`).
@@ -797,8 +862,8 @@ the same path will provide the right value:
     want to _write_ into the data structure, like in the following example:
 
         my $empty_data;
-        my $ref_to_value = traverse(\$empty_data, "some.0.'comp-lex'.path");
-        $$ref_to_value = 42; # note double sigil for indirection
+        my $ref_to_v = traverse(\$empty_data, "some.0.'comp-lex'.path");
+        $$ref_to_v = 42; # note double sigil for indirection
         # now we have that $empty_data is equal to:
         # { some => [ { 'comp-lex' => { path => 42 } } ] }
 
@@ -807,7 +872,7 @@ the same path will provide the right value:
 
         my $vars;
         ${traverse(\$vars, 'one.two.3')} = 42;
-        my $text = render('Answer is as simple as [% one.two.3 %]', $vars);
+        my $text = render('It is as simple as [% one.two.3 %]', $vars);
 
     Of course variable values might come from the command line or some other
     source in the real world!
@@ -825,7 +890,7 @@ the same path will provide the right value:
         my $path1 = [ qw< one two 3 > ];           # good
         my $path2 = [ 'one', { two => 1 }, 3 ];    # good
         my $path3 = [ 'one', { two => 1 }, [3] ];  # good
-        my $path4 = [ qw< one two >, { 3 => 1 } ]; # fails if ref is false
+        my $path4 = [ qw< one two >, { 3 => 1 } ]; # fails if !ref
 
     To get the `quanti` string, you have to traverse (in order) one hash,
     one hash and one array. The first path `$path1` is good to this regard,
@@ -868,6 +933,89 @@ the same path will provide the right value:
               }
            }
         }
+
+    As of version 1.52, you can also pass an extra hash reference with some
+    additional options for traversal. For example, consider the following
+    setup:
+
+        sub what { return 'hey' };
+        sub urgh { return 'gaah!' }
+        my $object = bless {what => 'ever', foo => 'bar'}, __PACKAGE__;
+
+    Object `$object` is a blessed hash reference with two keys, two methods
+    and one method that has the same name of one of the keys. The different
+    available options will help you decide what to do in this situation:
+
+    - `method_over_key`
+
+        when traversal by method is enabled (see `traverse_methods` below),
+        this option allows controlling whether the key or the method win when
+        both are present.
+
+        In the example above, if this option is set to a _true_ value the path
+        `what` triggers a method call; otherwise, the value in the hash is
+        considered (i.e. `ever` in the example). When a key is not present, the
+        method is called as a fallback.
+
+        Defaults to a _false_ value.
+
+    - `strict_blessed`
+
+        when traversal by method is enabled (see below), whenever a blessed
+        object is hit in the traversal only method calls are allowed. This
+        disables _peeking_ inside the object in case a method is not available
+        but a key exists.
+
+        In the example above, using path `what` always triggers the method call
+        (returning `hey`), using path `urgh` calls the method call, using path
+        `foo` returns the empty string.
+
+        This option hides option `method_over_key`.
+
+        Defaults to a _false_ value.
+
+    - `traverse_methods`
+
+        boolean flag to enable traversal of blessed objects using method calls
+        instead of direct inspection by key. When this is false, the other two
+        options above are ignored.
+
+        In the example object, if this parameter is set to a _false_ value the
+        object will be considered just a plain hash. Otherwise, what a visit for
+        keys `what`, `urgh` and `foo` returns depends on the options above.
+
+        Defaults to a false value for backwards compatibility.
+
+    The following scheme attempts to explain what happens in the different
+    cases:
+
+        traverse_methods = false (default)
+          strict_blessed = whatever
+        method_over_keys = whatever
+            what -> 'ever'      # key is used, method is ignored
+            foo  -> 'bar'       # key is used
+            urgh -> ''          # method is ignored
+
+        traverse_methods = true
+          strict_blessed = false (default)
+        method_over_keys = false (default)
+            what -> 'ever'      # key wins over method
+            foo  -> 'bar'       # key is used
+            urgh -> 'gaah!'     # no key, method is called
+
+        traverse_methods = true
+          strict_blessed = false (default)
+        method_over_keys = true
+            what -> 'hey'       # method wins over key
+            foo  -> 'bar'       # key is used
+            urgh -> 'gaah!'     # method is called
+
+        traverse_methods = true
+          strict_blessed = true
+        method_over_keys = whatever
+            what -> 'hey'       # method wins over key
+            foo  -> ''          # key is ignored
+            urgh -> 'gaah!'     # method is called
 
 # DIAGNOSTICS
 

@@ -1,4 +1,9 @@
 {{$NEXT}}
+   - minor Kwalitee changes
+   - added options for traversal: traverse_methods, strict_blessed and
+     method_over_key
+   - added configuration presets
+   - added traversal through method calls
 
 1.51_00  2016-03-31 19:03:20 CEST
    - clarification on relationship between V and traverse
