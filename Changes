@@ -1,4 +1,6 @@
 {{$NEXT}}
+
+1.5101  2016-04-02 20:17:00 CEST
    - minor Kwalitee changes
    - added options for traversal: traverse_methods, strict_blessed and
      method_over_key
