@@ -1,12 +1,14 @@
 package Template::Perlish;
 
+# vim: ts=3 sts=3 sw=3 et ai :
+
 use 5.008_000;
 use warnings;
 use strict;
 use Carp;
 use English qw( -no_match_vars );
 use constant ERROR_CONTEXT => 3;
-{ our $VERSION = '1.51_00'; }
+{ our $VERSION = '1.5101'; }
 
 # Function-oriented interface
 sub import {
@@ -37,19 +39,52 @@ sub render {
 } ## end sub render
 
 # Object-oriented interface
-sub new {
-   my ($package, @rest) = @_;
-   my $self = bless {
-      start      => '[%',
-      stdout     => 1,
-      stop       => '%]',
-      utf8       => 1,
-      variables  => {},
-     },
-     $package;
-   %{$self} = (%{$self}, @rest == 1 ? %{$rest[0]} : @rest);
-   return $self;
-} ## end sub new
+{
+   my %preset_for;
+   BEGIN {
+      %preset_for = (
+         'default' => {
+            method_over_key => 0,
+            start  => '[%',
+            stdout => 1,
+            stop   => '%]',
+            traverse_methods => 0,
+            utf8   => 1,
+         },
+         '1.52' => {
+            method_over_key => 1,
+            stdout => 0,
+            traverse_methods => 1,
+         },
+      );
+   }
+   sub new {
+      my $package = shift;
+      my $self = bless {%{$preset_for{'default'}}, variables => {}},
+        $package;
+
+      if (@_ == 1) {
+         %{$self} = (%{$self}, %{$_[0]});
+      }
+      elsif (scalar(@_) % 2 == 0) {
+         while (@_) {
+            my ($key, $value) = splice @_, 0, 2;
+            if ($key eq '-preset') {
+               croak "invalid preset $value in new()"
+                 unless exists $preset_for{$value};
+               %{$self} = (%{$self}, %{$preset_for{$value}});
+            }
+            else {
+               $self->{$key} = $value;
+            }
+         }
+      }
+      else {
+         croak 'invalid number of input arguments for constructor';
+      }
+      return $self;
+   } ## end sub new
+}
 
 sub process {
    my ($self, $template, $vars) = @_;
