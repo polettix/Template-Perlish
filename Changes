@@ -1,4 +1,5 @@
 {{$NEXT}}
+   - fixed spelling of SYNOPSIS in documentation
 
 1.5101  2016-04-02 20:17:00 CEST
    - minor Kwalitee changes
