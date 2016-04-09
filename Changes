@@ -1,5 +1,6 @@
 {{$NEXT}}
    - fixed spelling of SYNOPSIS in documentation
+   - release after 335 passes on CPAN Testers (thanks!)
 
 1.5101  2016-04-02 20:17:00 CEST
    - minor Kwalitee changes

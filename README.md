@@ -6,7 +6,7 @@ Template::Perlish - Yet Another Templating system for Perl
 
 This document describes Template::Perlish version 1.5101.
 
-# SYNOPSYS
+# SYNOPSIS
 
     use Template::Perlish;
 
