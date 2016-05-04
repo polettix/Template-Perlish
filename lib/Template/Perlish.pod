@@ -9,7 +9,7 @@ Template::Perlish - Yet Another Templating system for Perl
 This document describes Template::Perlish version 1.52.
 
 
-=head1 SYNOPSIS
+=head1 SYNOPSYS
 
    use Template::Perlish;
 

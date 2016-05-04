@@ -1,4 +1,5 @@
 {{$NEXT}}
+   - reverted spelling of SYNOPSYS... it was correct in the first place!
 
 1.52  2016-04-09 18:34:36 CEST
    - fixed spelling of SYNOPSIS in documentation
