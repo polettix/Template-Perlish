@@ -326,7 +326,7 @@ Defaults to C<[%>;
 
 =item I<stdout>
 
-boolean value, allows to I<clobber> C<STDOUT> for collecting the
+boolean value, allows one to I<clobber> C<STDOUT> for collecting the
 expansion of a template, or to leave C<STDOUT> untouched.
 
 New option as of release 1.52. Until the previous stable release, this
