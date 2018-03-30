@@ -9,7 +9,7 @@ Template::Perlish - Yet Another Templating system for Perl
 This document describes Template::Perlish version 1.52.
 
 
-=head1 SYNOPSYS
+=head1 SYNOPSIS
 
    use Template::Perlish;
 
@@ -214,7 +214,7 @@ it's also why this module is called C<Perlish>.
 
 =back
 
-Take a look at the example in the L</SYNOPSYS>, it actually contains all
+Take a look at the example in the L</SYNOPSIS>, it actually contains all
 that this module provides.
 
 To start, you'll need a C<Template::Perlish> object and, of course, a

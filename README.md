@@ -173,7 +173,7 @@ _Commands_ can be of four different types:
     modules, etc etc. This the most lazy approach I could think about, and
     it's also why this module is called `Perlish`.
 
-Take a look at the example in the ["SYNOPSYS"](#synopsys), it actually contains all
+Take a look at the example in the ["SYNOPSIS"](#synopsis), it actually contains all
 that this module provides.
 
 To start, you'll need a `Template::Perlish` object and, of course, a
@@ -277,7 +277,7 @@ template:
 
     - _stdout_
 
-        boolean value, allows to _clobber_ `STDOUT` for collecting the
+        boolean value, allows one to _clobber_ `STDOUT` for collecting the
         expansion of a template, or to leave `STDOUT` untouched.
 
         New option as of release 1.52. Until the previous stable release, this
