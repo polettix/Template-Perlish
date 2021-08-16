@@ -1,4 +1,7 @@
 {{$NEXT}}
+   - add binmode option
+   - change defaults for utf8
+   - add docs on utf8 and binmode
 
 1.54  2018-03-30 23:04:16 CEST
    - reverted spelling of SYNOPSYS... it was correct in the first place!

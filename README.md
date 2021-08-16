@@ -229,6 +229,11 @@ compilation, pass the `no_check` option to ["compile"](#compile):
 
     my $compiled = $tp->compile($template, no_check => 1);
 
+By default, the stuff is assumed to be utf-8 compliant, which is
+reflected by option `utf8` defaulting to _true_ in ["**new**"](#new).
+This default is inhibited by setting `utf8` to a false value, or
+`binmode` to any defined value.
+
 # INTERFACE 
 
 ## One Shot Templates
@@ -262,6 +267,11 @@ template:
 
     constructor, does exactly what you think. You can provide any parameter,
     but only the following will make sense:
+
+    - _binmode_
+
+        string to set `binmode` on the output filehandle. A defined value
+        disables the default to `utf8`.
 
     - _method\_over\_keys_
 
@@ -309,6 +319,12 @@ template:
         boolean flag used for traversal, see ["traverse"](#traverse).
 
         Defaults to _false_;
+
+    - _utf8_
+
+        sets the handling to utf8.
+
+        Defaults to _true_, unless `binmode` option is set to a defined value.
 
     - _variables_
 
