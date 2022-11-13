@@ -99,7 +99,7 @@ As a summary:
     - lightweight, a single-file module with minimal requirements that you can
     easily embed in your script;
     - simple approach to variable substitution, following
-    [Template::Toolkit](https://metacpan.org/pod/Template::Toolkit) to cope with scalars, hashes and
+    [Template::Toolkit](https://metacpan.org/pod/Template%3A%3AToolkit) to cope with scalars, hashes and
     arrays;
 - PRO/CON
     - Perl code to handle all logic. This can be regarded as a PRO if you're a
@@ -115,7 +115,7 @@ As a summary:
 
 If you think that this module does not fit your requirements, my
 personal suggestion for a templating system is
-[Template::Toolkit](https://metacpan.org/pod/Template::Toolkit): it's complete, easy to use and
+[Template::Toolkit](https://metacpan.org/pod/Template%3A%3AToolkit): it's complete, easy to use and
 extensible, has excellent documentation (including a book and a quick
 reference guide) and support. Do you need anything more?
 
@@ -246,7 +246,8 @@ template:
         use Template::Perlish qw< render >;
         my $rendered = render($template);              # OR
         my $rendered = render($template, %variables);  # OR
-        my $rendered = render($template, $var_referEnce);
+        my $rendered = render($template, $var_ref);    # OR
+        my $rendered = render($template, $var_ref, $opts_ref);
 
     if you already have a template and the variables to fill it in, this is
     probably the quickest thing to do.
@@ -254,6 +255,8 @@ template:
     You can pass the template alone, or you can pass the variables as well,
     either as a flat list (that will be converted back to a hash) or as a
     single reference.
+
+    It's also possible to set all options described for constructor ["new"](#new), as long as you
 
     Returns the rendered template, i.e. the same output as ["process"](#process). Note
     that it assumes the default values for options explained in ["new"](#new).
@@ -272,6 +275,13 @@ template:
 
         string to set `binmode` on the output filehandle. A defined value
         disables the default to `utf8`.
+
+    - _functions_
+
+        (as of version 1.58) hash reference with functions that will be injected
+        in the `Template::Perlish` namespace for the duration of the template
+        evaluation. Keys are assumed to be valid function names, values are
+        assumed to be valid sub references.
 
     - _method\_over\_keys_
 
@@ -1098,7 +1108,7 @@ merchantability or fitness for a particular purpose.
 # SEE ALSO
 
 The best templating system in the world is undoubtfully
-[Template::Toolkit](https://metacpan.org/pod/Template::Toolkit).
+[Template::Toolkit](https://metacpan.org/pod/Template%3A%3AToolkit).
 
 See
 [http://perl.apache.org/docs/tutorials/tmpl/comparison/comparison.html](http://perl.apache.org/docs/tutorials/tmpl/comparison/comparison.html)
