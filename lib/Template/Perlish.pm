@@ -8,7 +8,7 @@ use strict;
 use Carp;
 use English qw( -no_match_vars );
 use constant ERROR_CONTEXT => 3;
-{ our $VERSION = '1.56'; }
+{ our $VERSION = '1.57'; }
 use Scalar::Util qw< blessed reftype >;
 
 # Function-oriented interface
