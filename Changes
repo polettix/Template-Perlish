@@ -1,5 +1,8 @@
 {{$NEXT}}
 
+1.58  2023-02-05 14:55:55 CET
+   - release after 412 PASSes on CPAN Testers (thanks!)
+
 1.57  2022-11-13 09:40:24 CET
    - add functions option, with doc
    - minor doc fixes

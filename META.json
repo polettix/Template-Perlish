@@ -50,10 +50,10 @@
    "provides" : {
       "Template::Perlish" : {
          "file" : "lib/Template/Perlish.pm",
-         "version" : "1.57"
+         "version" : "1.58"
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
          "web" : "https://github.com/polettix/Template-Perlish/issues"
@@ -65,10 +65,11 @@
          "web" : "https://github.com/polettix/Template-Perlish"
       }
    },
-   "version" : "1.57",
+   "version" : "1.58",
    "x_contributors" : [
       "berrak <bkronmailbox-git@yahoo.se>",
-      "Flavio Poletti <flavio@polettix.it>"
+      "Flavio Poletti <flavio@polettix.it>",
+      "Gabor Szabo <gabor@szabgab.com>"
    ],
    "x_generated_by_perl" : "v5.36.0",
    "x_serialization_backend" : "Cpanel::JSON::XS version 4.32",
