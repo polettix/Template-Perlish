@@ -25,7 +25,6 @@ END_OF_TEMPLATE
          },
       },
    );
-   diag $processed;
    is(Template::Perlish->can('baz'),
       undef, 'no function baz defined (prior to call to template)');
    like($processed, qr{(?mxs: variable<bar> )}, 'variable');
