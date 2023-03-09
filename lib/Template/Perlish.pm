@@ -520,7 +520,7 @@ END_OF_CHUNK
 } ## end sub _simple_text
 
 sub crumble {
-   my ($input) = @_;
+   my ($input, $allow_partial) = @_;
    return unless defined $input;
 
    $input =~ s{\A\s+|\s+\z}{}gmxs;
@@ -545,7 +545,7 @@ sub crumble {
    pos($input) = $prepos;
 
    return unless defined $postpos;
-   return if $postpos != length($input);
+   return if ($postpos != length($input)) && ! ($allow_partial);
 
    # cleanup @path components
    for my $part (@path) {
@@ -569,6 +569,7 @@ sub crumble {
       $part = join '', @subparts;
    } ## end for my $part (@path)
 
+   return (\@path, $postpos) if $allow_partial && wantarray;
    return \@path;
 } ## end sub crumble
 

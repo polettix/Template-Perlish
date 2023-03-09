@@ -834,7 +834,9 @@ the same path will provide the right value:
 
 - **crumble**
 
-        my $array_ref = crumble($path);
+        my $array_ref = crumble($path);        # OR
+        my $array_ref = crumble($path, 1);     # OR, BETTER
+        my ($aref, $pos) = crumble($path, 1);
 
     split the input `$path` into _crumbs_ that should be followed into
     some data structure (you can use ["traverse"](#traverse) to do the actual
@@ -842,6 +844,17 @@ the same path will provide the right value:
     Returns `undef` if the provided `$path` cannot be broken down. See
     ["Templates"](#templates) for the rules of breaking a path into pieces, this is the
     actual function used to do that.
+
+    As of version 1.60, this function also accepts a second optional boolean
+    argument for supporting _partial matches_. If false (default), the legacy
+    behaviour is kept, and the provided input `$path` must match in its
+    entirety or the splitting will fail. If true, the extraction of crumbs will
+    begin at the first character of `$path` but be allowed to stop in the
+    middle; this e.g. allows parsing strings like `foo.bar:baz`, with crumbs
+    resulting in `['foo', 'bar']`. The first variant will only return the
+    crumbs in an array reference; the second variant will also point out the
+    position where the match stopped, so that residual stuff can be extracted
+    (in the example, the `:baz` part).
 
 - **traverse**
 
