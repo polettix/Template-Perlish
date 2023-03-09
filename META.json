@@ -50,10 +50,10 @@
    "provides" : {
       "Template::Perlish" : {
          "file" : "lib/Template/Perlish.pm",
-         "version" : "1.58"
+         "version" : "1.59"
       }
    },
-   "release_status" : "stable",
+   "release_status" : "testing",
    "resources" : {
       "bugtracker" : {
          "web" : "https://github.com/polettix/Template-Perlish/issues"
@@ -65,7 +65,7 @@
          "web" : "https://github.com/polettix/Template-Perlish"
       }
    },
-   "version" : "1.58",
+   "version" : "1.59",
    "x_contributors" : [
       "berrak <bkronmailbox-git@yahoo.se>",
       "Flavio Poletti <flavio@polettix.it>",
