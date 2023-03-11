@@ -1,4 +1,6 @@
 {{$NEXT}}
+
+1.62  2023-03-11 15:04:02 CET
    - Add support for passing an additional option to traverse(), for
      setting the return value when missing a key.
 
