@@ -889,10 +889,11 @@ the same path will provide the right value:
 
     In particular, you will want to pass a reference to a hash or array if
     you want to just _read_ from `data`. In this case, the first missing
-    crumb will make the function return immediately an empty string value;
-    moreover, if all crumbs are successfully found, the value will be
-    returned. This is what is actually used by the functions described in
-    ["Variables Accessors"](#variables-accessors).
+    crumb will make the function return immediately an empty string value
+    (or, as of version 1.62, whatever is passed with option `missing`, if
+    anything); moreover, if all crumbs are successfully found, the value
+    will be returned. This is what is actually used by the functions
+    described in ["Variables Accessors"](#variables-accessors).
 
     If you pass a reference to a scalar or to another reference instead, you
     will get back a reference to a value. In this case, any missing parts
@@ -917,7 +918,8 @@ the same path will provide the right value:
     source in the real world!
 
     When something goes wrong in the traversal, `undef` is returned if
-    auto-vivification is enabled, an empty string is returned otherwise.
+    auto-vivification is enabled, an empty string (or, as of version 1.62,
+    what is passed as option `missing` if present) is returned otherwise.
 
     If `$path` is a reference to an array, its components can be plain
     scalars or references themselves. When they are plain scalars, they are
@@ -1055,6 +1057,22 @@ the same path will provide the right value:
             what -> 'hey'       # method wins over key
             foo  -> ''          # key is ignored
             urgh -> 'gaah!'     # method is called
+
+    Since version 1.62, additional option `missing` allows setting the
+    return value when the target key is not found. This applies only when
+    auto-vivification is not active. When this key is missing, the return
+    value is by default set to the empty string, preserving
+    backwards-compatibility.
+
+    To tell an undefined value from a really missing key, it's possible to
+    pass a marker reference and check the return value against it with
+    `Scalar::Util::refaddr`:
+
+        use Scalar::Util 'refaddr';
+        my $marker = [];
+        my $value = traverse($data, $path, { missing => $marker });
+        say 'the value is missing'
+           if ref($value) && refaddr($value) == refaddr($marker);
 
 # DIAGNOSTICS
 

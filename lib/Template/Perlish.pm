@@ -249,7 +249,8 @@ sub traverse {  ## no critic (RequireArgUnpacking,ProhibitExcessComplexity)
       # if $ref is not true, we hit a wall. How we proceed depends on
       # whether we were asked to auto-vivify or not.
       if (!$ref) {
-         return '' unless $ref_wanted;    # don't bother going on
+         return (exists($opts->{missing}) ? $opts->{missing} : '')
+            unless $ref_wanted;    # don't bother going on
 
          # auto-vivification requested! $key will tell us how to
          # proceed further, hopefully
