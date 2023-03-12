@@ -4,7 +4,7 @@ Template::Perlish - Yet Another Templating system for Perl
 
 # VERSION
 
-This document describes Template::Perlish version 1.62.
+This document describes Template::Perlish version 1.64.
 
 # SYNOPSIS
 
@@ -1073,6 +1073,12 @@ the same path will provide the right value:
         my $value = traverse($data, $path, { missing => $marker });
         say 'the value is missing'
            if ref($value) && refaddr($value) == refaddr($marker);
+
+    By default, landing on an (existent) undefined value makes `traverse`
+    return an empty string; this is to simplify usage in templates and is in
+    line with the default value for `missing`. As of version 1.64 it's
+    possible to pass option `undef` to set a different value, defaulting to
+    the empty string for backwards compatibility;
 
 # DIAGNOSTICS
 
